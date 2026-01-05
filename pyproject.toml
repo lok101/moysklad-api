@@ -1,5 +1,5 @@
 [project]
-name = "moysklad-api
+name = "moysklad-api"
 version = "0.1.1"
 description = "Клиент для работы с API МойСклад (api.moysklad.ru)"
 readme = "README.md"
