@@ -1,7 +1,7 @@
 """
 Клиент для работы с API МойСклад
 """
-
+import os
 from datetime import datetime
 from typing import Any, Mapping
 from uuid import UUID
@@ -9,15 +9,17 @@ from uuid import UUID
 import aiohttp
 import requests
 
+from ms_api.exceptions import MoySkladValidationError
 from ms_api.models import (
     ProductStocksMSCollection,
     ProductExpandStocksMSCollection,
     ProductsMSCollection,
     ProductMSModel,
-    StoresCollection,
-    StoreModel,
+    WarehouseCollection,
+    WarehouseModel,
+    BundlesCollection,
 )
-from ms_api.common import MSProductType, EntityType
+from ms_api.common import ProductType, EntityType, BundleType
 from ms_api.data_templates import generate_metadata
 from ms_api.ms_time import MSTime
 
@@ -29,16 +31,22 @@ class MoySkladAPIClient:
     Args:
         access_token: Токен доступа к API
     """
-    
-    def __init__(self, access_token: str):
+
+    def __init__(self, access_token: str | None = None):
         self._base_url = "https://api.moysklad.ru/api/remap/1.2"
+
+        access_token = access_token or os.getenv("MOY_SKLAD_ACCESS_TOKEN")
+
+        if not access_token:
+            raise MoySkladValidationError("Установите токен в виртуальное окружение по ключу MOY_SKLAD_ACCESS_TOKEN.")
+
         self._headers = {
             "Authorization": f"Bearer {access_token}",
             "Accept-Encoding": "gzip",
             "Content-Type": "application/json"
         }
 
-    async def get_warehouse_by_ex_code(self, code: int) -> StoreModel | None:
+    async def get_warehouse_by_ex_code(self, code: int) -> WarehouseModel | None:
         """
         Получить склад по внешнему коду
         
@@ -54,13 +62,13 @@ class MoySkladAPIClient:
         if response is None:
             return None
 
-        store_model = StoresCollection.model_validate(response)
+        store_model = WarehouseCollection.model_validate(response)
 
         if store_model.items:
             return store_model.items[0]
         return None
 
-    async def get_warehouse_by_id(self, warehouse_id: str | UUID) -> StoreModel | None:
+    async def get_warehouse_by_id(self, warehouse_id: str | UUID) -> WarehouseModel | None:
         """
         Получить склад по ID
         
@@ -76,7 +84,7 @@ class MoySkladAPIClient:
         if response is None:
             return None
 
-        store_model = StoreModel.model_validate(response)
+        store_model = WarehouseModel.model_validate(response)
 
         return store_model
 
@@ -88,8 +96,8 @@ class MoySkladAPIClient:
             ProductsMSCollection: Коллекция товаров
         """
         request_filter = (
-            f"?filter=pathName={MSProductType.SNACK}"
-            f";pathName={MSProductType.FOOD}"
+            f"?filter=pathName={ProductType.SNACK}"
+            f";pathName={ProductType.FOOD}"
         )
         url = f"{self._base_url}/entity/product{request_filter}"
 
@@ -100,6 +108,20 @@ class MoySkladAPIClient:
         products_collection = ProductsMSCollection.model_validate(response)
 
         return products_collection
+
+    async def get_bundles(self) -> BundlesCollection:
+        request_filter = (
+            f"?filter=pathName={BundleType.COFFEE}"
+        )
+        url = f"{self._base_url}/entity/bundle{request_filter}"
+
+        response = await self._async_get(url)
+        if response is None:
+            raise Exception("Не удалось получить продукты из API")
+
+        bundles_collection = BundlesCollection.model_validate(response)
+
+        return bundles_collection
 
     async def get_last_demand(self, warehouse_id: UUID, organization_id: UUID) -> Mapping | None:
         """
@@ -123,7 +145,7 @@ class MoySkladAPIClient:
         response = await self._async_get(url)
         if response is None:
             return None
-            
+
         if response.get("rows"):
             return response["rows"][0]
         return None
@@ -274,7 +296,7 @@ class MoySkladAPIClient:
         return stocks_collection
 
     async def get_warehouse_stocks_with_moment(
-            self, 
+            self,
             store_id: UUID,
             moment: datetime
     ) -> ProductExpandStocksMSCollection:
@@ -328,4 +350,3 @@ class MoySkladAPIClient:
         else:
             error_text = response.content.decode("utf-8")
             raise Exception(f"Ошибка API: {response.status_code} - {error_text}")
-

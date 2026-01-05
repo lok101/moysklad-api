@@ -3,6 +3,7 @@ MoySklad API Client Package
 
 Пакет для работы с API МойСклад (api.moysklad.ru)
 """
+from dotenv import load_dotenv
 
 from ms_api.client import MoySkladAPIClient
 from ms_api.models import (
@@ -12,14 +13,17 @@ from ms_api.models import (
     ProductStocksMSModel,
     ProductExpandStocksMSCollection,
     ProductExpandStocksMSModel,
-    StoresCollection,
-    StoreModel,
+    WarehouseCollection,
+    WarehouseModel,
+    BundlesCollection,
+    BundleModel,
 )
 from ms_api.common import (
-    MSProductType,
+    ProductType,
     EntityType,
-    BASE_URL,
 )
+
+load_dotenv()
 
 __version__ = "0.1.0"
 
@@ -31,10 +35,10 @@ __all__ = [
     "ProductStocksMSModel",
     "ProductExpandStocksMSCollection",
     "ProductExpandStocksMSModel",
-    "StoresCollection",
-    "StoreModel",
-    "MSProductType",
+    "WarehouseCollection",
+    "WarehouseModel",
+    "BundlesCollection",
+    "BundleModel",
+    "ProductType",
     "EntityType",
-    "BASE_URL",
 ]
-

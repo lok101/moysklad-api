@@ -3,9 +3,6 @@
 """
 
 import enum
-from uuid import UUID
-
-BASE_URL = "https://api.moysklad.ru/api/remap/1.2"
 
 
 class EntityType(enum.StrEnum):
@@ -21,8 +18,11 @@ class EntityType(enum.StrEnum):
     ATTRIBUTE = 'attributemetadata'
 
 
-class MSProductType(enum.StrEnum):
+class ProductType(enum.StrEnum):
     """Типы товаров в МойСклад"""
     SNACK = 'Основной склад Остатки/МОИ Снэки'
     FOOD = 'Основной склад Остатки/МОИ Снэки/Сэндвичи, салаты'
 
+
+class BundleType(enum.StrEnum):
+    COFFEE = "Кофе"

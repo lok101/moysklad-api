@@ -8,14 +8,14 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 
-class StoreModel(BaseModel):
+class WarehouseModel(BaseModel):
     """Модель склада из МойСклад"""
     id: UUID
     name: str
     code: int
 
 
-class StoresCollection(BaseModel):
+class WarehouseCollection(BaseModel):
     """Коллекция складов из МойСклад"""
-    items: Annotated[list[StoreModel], Field(validation_alias="rows")]
+    items: Annotated[list[WarehouseModel], Field(validation_alias="rows")]
 

@@ -63,3 +63,4 @@ Desktop.ini
 .env
 .env.local
 
+/__test__.py

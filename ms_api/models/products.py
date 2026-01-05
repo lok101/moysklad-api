@@ -7,7 +7,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from ms_api.common import MSProductType
+from ms_api.common import ProductType
 
 
 class ProductMSModel(BaseModel):
@@ -16,7 +16,7 @@ class ProductMSModel(BaseModel):
     name: str
     code: int
     capacity: int = Field(validation_alias="volume")
-    type: MSProductType = Field(validation_alias="pathName")
+    type: ProductType = Field(validation_alias="pathName")
 
 
 class ProductsMSCollection(BaseModel):
