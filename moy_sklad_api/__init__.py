@@ -5,7 +5,7 @@ MoySklad API Client Package
 """
 from dotenv import load_dotenv
 
-from moy_sklad_api.client import MoySkladAPIClient
+from moy_sklad_api.client import Filter, MoySkladAPIClient
 from moy_sklad_api.models import (
     ProductsMSCollection,
     ProductMSModel,
@@ -18,10 +18,8 @@ from moy_sklad_api.models import (
     BundlesCollection,
     BundleModel,
 )
-from moy_sklad_api.common import (
-    ProductType,
+from moy_sklad_api.enums import (
     EntityType,
-    BundleType,
 )
 
 load_dotenv()
@@ -29,6 +27,7 @@ load_dotenv()
 __version__ = "0.1.0"
 
 __all__ = [
+    "Filter",
     "MoySkladAPIClient",
     "ProductsMSCollection",
     "ProductMSModel",
@@ -40,7 +39,5 @@ __all__ = [
     "WarehouseModel",
     "BundlesCollection",
     "BundleModel",
-    "ProductType",
     "EntityType",
-    "BundleType",
 ]

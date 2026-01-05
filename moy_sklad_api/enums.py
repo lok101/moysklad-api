@@ -16,13 +16,3 @@ class EntityType(enum.StrEnum):
     DEMAND = 'demand'
     SALES_CHANNEL = 'saleschannel'
     ATTRIBUTE = 'attributemetadata'
-
-
-class ProductType(enum.StrEnum):
-    """Типы товаров в МойСклад"""
-    SNACK = 'Основной склад Остатки/МОИ Снэки'
-    FOOD = 'Основной склад Остатки/МОИ Снэки/Сэндвичи, салаты'
-
-
-class BundleType(enum.StrEnum):
-    COFFEE = "Кофе"

@@ -3,15 +3,13 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from moy_sklad_api.common import BundleType
-
 
 class BundleModel(BaseModel):
     """Модель комплекта из МойСклад"""
     id: UUID
     name: str
     code: int
-    type: BundleType = Field(validation_alias="pathName")
+    type: str = Field(validation_alias="pathName")
 
 
 class BundlesCollection(BaseModel):
