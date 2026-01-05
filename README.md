@@ -46,7 +46,7 @@ async def main():
     source_store = UUID("cc244c2d-55a8-11ed-0a80-023100027dcb")
     organization = UUID("1783080e-d9e8-11ed-0a80-0145000af55f")
     
-    move_result = client.create_move(
+    move_result = await client.create_move(
         target_store_id=target_store,
         positions=[(product_id, 10)],
         source_store_id=source_store,
@@ -112,7 +112,8 @@ dt = MSTime.datetime_from_str_ms("2025-01-01 12:00:00")
 
 - `MSTime` - Утилиты для работы с датами в форматах MS API
 - `generate_metadata()` - Генерация метаданных для сущностей
-- `MSProductType` - Типы товаров
+- `ProductType` - Типы товаров
+- `BundleType` - Типы комплектов
 - `EntityType` - Типы сущностей
 
 ## Зависимости

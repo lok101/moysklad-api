@@ -21,6 +21,7 @@ from ms_api.models import (
 from ms_api.common import (
     ProductType,
     EntityType,
+    BundleType,
 )
 
 load_dotenv()
@@ -41,4 +42,5 @@ __all__ = [
     "BundleModel",
     "ProductType",
     "EntityType",
+    "BundleType",
 ]
