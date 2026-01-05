@@ -49,10 +49,10 @@ pip install git+https://github.com/yourusername/ms-api.git
 После установки проверьте, что пакет доступен:
 
 ```python
-import ms_api
-print(ms_api.__version__)
+import moy_sklad_api
+print(moy_sklad_api.__version__)
 
-from ms_api import MoySkladAPIClient
+from moy_sklad_api import MoySkladAPIClient
 print("Пакет установлен успешно!")
 ```
 

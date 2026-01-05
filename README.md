@@ -22,7 +22,7 @@ pip install -e ".[dev]"
 import asyncio
 from datetime import datetime
 from uuid import UUID
-from ms_api import MoySkladAPIClient
+from moy_sklad_api import MoySkladAPIClient
 
 async def main():
     # Создаем клиент
@@ -62,8 +62,8 @@ if __name__ == "__main__":
 ### Работа с датами
 
 ```python
-from ms_api import MoySkladAPIClient
-from ms_api.ms_time import MSTime
+from moy_sklad_api import MoySkladAPIClient
+from moy_sklad_api.ms_time import MSTime
 from datetime import datetime
 
 client = MoySkladAPIClient(access_token="your_token")
@@ -97,7 +97,7 @@ dt = MSTime.datetime_from_str_ms("2025-01-01 12:00:00")
 
 ### Модели
 
-Все модели находятся в модуле `ms_api.models`:
+Все модели находятся в модуле `moy_sklad_api.models`:
 
 - `ProductMSModel` - Модель товара
 - `ProductsMSCollection` - Коллекция товаров

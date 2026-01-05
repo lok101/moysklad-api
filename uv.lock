@@ -495,8 +495,8 @@ wheels = [
 ]
 
 [[package]]
-name = "ms-api"
-version = "0.1.0"
+name = "moy-sklad-api"
+version = "0.1.1"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },

@@ -5,8 +5,8 @@ MoySklad API Client Package
 """
 from dotenv import load_dotenv
 
-from ms_api.client import MoySkladAPIClient
-from ms_api.models import (
+from moy_sklad_api.client import MoySkladAPIClient
+from moy_sklad_api.models import (
     ProductsMSCollection,
     ProductMSModel,
     ProductStocksMSCollection,
@@ -18,7 +18,7 @@ from ms_api.models import (
     BundlesCollection,
     BundleModel,
 )
-from ms_api.common import (
+from moy_sklad_api.common import (
     ProductType,
     EntityType,
     BundleType,

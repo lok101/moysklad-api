@@ -1,21 +1,21 @@
 """
 Модели данных для MS API
 """
-from ms_api.models.bundles import (
+from moy_sklad_api.models.bundles import (
     BundleModel,
     BundlesCollection
 )
-from ms_api.models.products import (
+from moy_sklad_api.models.products import (
     ProductsMSCollection,
     ProductMSModel,
 )
-from ms_api.models.product_stocks import (
+from moy_sklad_api.models.product_stocks import (
     ProductStocksMSCollection,
     ProductStocksMSModel,
     ProductExpandStocksMSCollection,
     ProductExpandStocksMSModel,
 )
-from ms_api.models.warehouses import (
+from moy_sklad_api.models.warehouses import (
     WarehouseCollection,
     WarehouseModel,
 )

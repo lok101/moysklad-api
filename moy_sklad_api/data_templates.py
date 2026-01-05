@@ -4,7 +4,7 @@
 
 from uuid import UUID
 
-from ms_api.common import EntityType
+from moy_sklad_api.common import EntityType
 
 
 def generate_metadata(entity_id: UUID, entity_type: EntityType) -> dict:

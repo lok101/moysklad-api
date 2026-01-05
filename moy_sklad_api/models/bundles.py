@@ -3,7 +3,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from ms_api.common import BundleType
+from moy_sklad_api.common import BundleType
 
 
 class BundleModel(BaseModel):

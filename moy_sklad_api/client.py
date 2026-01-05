@@ -9,8 +9,8 @@ from uuid import UUID
 import aiohttp
 import requests
 
-from ms_api.exceptions import MoySkladValidationError
-from ms_api.models import (
+from moy_sklad_api.exceptions import MoySkladValidationError
+from moy_sklad_api.models import (
     ProductStocksMSCollection,
     ProductExpandStocksMSCollection,
     ProductsMSCollection,
@@ -19,9 +19,9 @@ from ms_api.models import (
     WarehouseModel,
     BundlesCollection,
 )
-from ms_api.common import ProductType, EntityType, BundleType
-from ms_api.data_templates import generate_metadata
-from ms_api.ms_time import MSTime
+from moy_sklad_api.common import ProductType, EntityType, BundleType
+from moy_sklad_api.data_templates import generate_metadata
+from moy_sklad_api.ms_time import MSTime
 
 
 class MoySkladAPIClient:
