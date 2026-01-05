@@ -30,9 +30,10 @@ class MoySkladAPIClient:
     
     Args:
         access_token: Токен доступа к API
+        session: Опциональная сессия aiohttp. Если не передана, будет создана новая.
     """
 
-    def __init__(self, access_token: str | None = None):
+    def __init__(self, access_token: str | None = None, session: aiohttp.ClientSession | None = None):
         self._base_url = "https://api.moysklad.ru/api/remap/1.2"
 
         access_token = access_token or os.getenv("MOY_SKLAD_ACCESS_TOKEN")
@@ -45,6 +46,13 @@ class MoySkladAPIClient:
             "Accept-Encoding": "gzip",
             "Content-Type": "application/json"
         }
+        
+        if session is None:
+            self._session = aiohttp.ClientSession()
+            self._own_session = True
+        else:
+            self._session = session
+            self._own_session = False
 
     async def get_warehouse_by_ex_code(self, code: int) -> WarehouseModel | None:
         """
@@ -146,8 +154,10 @@ class MoySkladAPIClient:
         if response is None:
             return None
 
-        if response.get("rows"):
-            return response["rows"][0]
+        if isinstance(response, dict) and response.get("rows"):
+            rows = response["rows"]
+            if rows:
+                return rows[0]
         return None
 
     async def create_demand(
@@ -201,7 +211,7 @@ class MoySkladAPIClient:
                 } for product_id, quantity, price in positions],
         }
 
-        response = self._sync_post(url, data)
+        response = await self._async_post(url, data)
 
         return response
 
@@ -225,7 +235,7 @@ class MoySkladAPIClient:
 
         return product_model
 
-    def create_move(
+    async def create_move(
             self,
             target_store_id: UUID,
             positions: list[tuple[UUID, int]],
@@ -269,7 +279,7 @@ class MoySkladAPIClient:
                 } for product_id, quantity in positions]
         }
 
-        response = self._sync_post(url, data)
+        response = await self._async_post(url, data)
 
         return response
 
@@ -291,7 +301,15 @@ class MoySkladAPIClient:
         if response is None:
             raise Exception(f"Не удалось получить остатки склада {store_id} из API")
 
-        stocks_collection = ProductStocksMSCollection.model_validate({"rows": response})
+        # API возвращает массив напрямую, оборачиваем в структуру с rows
+        if isinstance(response, list):
+            response_data = {"rows": response}
+        elif isinstance(response, dict) and "rows" in response:
+            response_data = response
+        else:
+            response_data = {"rows": response}
+
+        stocks_collection = ProductStocksMSCollection.model_validate(response_data)
 
         return stocks_collection
 
@@ -329,24 +347,39 @@ class MoySkladAPIClient:
     async def _async_get(self, url: str):
         """Асинхронный GET запрос"""
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url, headers=self._headers) as response:
-                    response.raise_for_status()
-                    if response.status == 200:
-                        return await response.json()
-                    else:
-                        error_text = await response.text()
-                        raise Exception(f"Ошибка API: {response.status} - {error_text}")
+            async with self._session.get(url, headers=self._headers) as response:
+                response.raise_for_status()
+                return await response.json()
 
         except aiohttp.ClientError as e:
             raise Exception(f"Ошибка сети: {e}")
+
+    async def _async_post(self, url: str, data: dict[str, Any]):
+        """Асинхронный POST запрос"""
+        try:
+            async with self._session.post(url, headers=self._headers, json=data) as response:
+                response.raise_for_status()
+                return await response.json()
+
+        except aiohttp.ClientError as e:
+            raise Exception(f"Ошибка сети: {e}")
+    
+    async def close(self):
+        """Закрыть сессию, если она была создана клиентом"""
+        if self._own_session and self._session is not None:
+            await self._session.close()
+            self._session = None
+    
+    async def __aenter__(self):
+        """Поддержка async context manager"""
+        return self
+    
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Закрытие сессии при выходе из context manager"""
+        await self.close()
 
     def _sync_post(self, url, data: dict[str, Any]):
         """Синхронный POST запрос"""
         response = requests.post(url=url, headers=self._headers, json=data)
         response.raise_for_status()
-        if response.status_code == 200:
-            return response.json()
-        else:
-            error_text = response.content.decode("utf-8")
-            raise Exception(f"Ошибка API: {response.status_code} - {error_text}")
+        return response.json()

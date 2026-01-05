@@ -1,6 +1,6 @@
 [project]
-name = "ms-api"
-version = "0.1.0"
+name = "moysklad-api
+version = "0.1.1"
 description = "Клиент для работы с API МойСклад (api.moysklad.ru)"
 readme = "README.md"
 requires-python = ">=3.10"
