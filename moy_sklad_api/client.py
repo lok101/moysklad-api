@@ -2,8 +2,10 @@
 Клиент для работы с API МойСклад
 """
 import os
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Mapping
+from urllib.parse import quote
 from uuid import UUID
 
 import aiohttp
@@ -19,9 +21,32 @@ from moy_sklad_api.models import (
     WarehouseModel,
     BundlesCollection,
 )
-from moy_sklad_api.common import ProductType, EntityType, BundleType
+from moy_sklad_api.enums import EntityType
 from moy_sklad_api.data_templates import generate_metadata
 from moy_sklad_api.ms_time import MSTime
+
+
+@dataclass
+class Filter:
+    """Класс для представления одного условия фильтрации"""
+    field: str
+    value: Any
+    
+    def to_string(self) -> str:
+        return f"{self.field}={self._format_value(self.value)}"
+    
+    @staticmethod
+    def _format_value(value: Any) -> str:
+        if isinstance(value, bool):
+            return str(value).lower()
+        elif isinstance(value, UUID):
+            return str(value)
+        elif isinstance(value, str):
+            if value.startswith("http://") or value.startswith("https://"):
+                return quote(value, safe='/:')
+            return quote(value, safe='')
+        else:
+            return str(value)
 
 
 class MoySkladAPIClient:
@@ -54,27 +79,31 @@ class MoySkladAPIClient:
             self._session = session
             self._own_session = False
 
-    async def get_warehouse_by_ex_code(self, code: int) -> WarehouseModel | None:
+    async def get_warehouses(
+        self, *,
+        filters: dict[str, Any] | list[Filter | tuple[str, Any]] | None = None,
+        order: str | None = None,
+        limit: int | None = None,
+    ) -> WarehouseCollection:
         """
-        Получить склад по внешнему коду
+        Получить список складов с возможностью фильтрации
         
         Args:
-            code: Внешний код склада
-            
+            filters: Словарь или список Filter/кортежей для фильтрации
+            order: Параметр сортировки (например, "name,asc")
+            limit: Лимит количества записей
+        
         Returns:
-            StoreModel или None, если склад не найден
+            WarehouseCollection: Коллекция складов
         """
-        url = f"{self._base_url}/entity/store?filter=code={code}"
+        query_string = self._build_query_string(filters=filters, order=order, limit=limit)
+        url = f"{self._base_url}/entity/store{query_string}"
+        
         response = await self._async_get(url)
-
         if response is None:
-            return None
-
-        store_model = WarehouseCollection.model_validate(response)
-
-        if store_model.items:
-            return store_model.items[0]
-        return None
+            raise Exception("Не удалось получить склады из API")
+        
+        return WarehouseCollection.model_validate(response)
 
     async def get_warehouse_by_id(self, warehouse_id: str | UUID) -> WarehouseModel | None:
         """
@@ -96,69 +125,180 @@ class MoySkladAPIClient:
 
         return store_model
 
-    async def get_products(self) -> ProductsMSCollection:
+    def _build_query_string(
+        self,
+        filters: dict[str, Any] | list[Filter | tuple[str, Any]] | None = None,
+        order: str | None = None,
+        limit: int | None = None,
+        expand: str | None = None,
+        **kwargs: Any
+    ) -> str:
         """
-        Получить список товаров (снэки и еда)
+        Построить строку query параметров для API МойСклад
+        
+        Args:
+            filters: Словарь или список Filter/кортежей для фильтрации.
+                    Словарь: {"поле": значение/список_значений}
+                    Список: [Filter(...), ...] или [("поле", значение), ...]
+                    Несколько значений одного поля объединяются через OR.
+                    Разные поля объединяются через AND.
+            order: Параметр сортировки (например, "moment,desc")
+            limit: Лимит количества записей
+            expand: Параметр расширения (например, "meta")
+            **kwargs: Дополнительные query параметры
+        
+        Returns:
+            str: Строка query параметров вида "?filter=...&order=...&limit=..."
+        """
+        query_parts = []
+        
+        if filters:
+            filter_parts = []
+            
+            if isinstance(filters, list):
+                for item in filters:
+                    if isinstance(item, Filter):
+                        filter_parts.append(item.to_string())
+                    elif isinstance(item, tuple):
+                        field, value = item
+                        if isinstance(value, (list, tuple)):
+                            for v in value:
+                                filter_parts.append(f"{field}={self._format_filter_value(v)}")
+                        else:
+                            filter_parts.append(f"{field}={self._format_filter_value(value)}")
+            elif isinstance(filters, dict):
+                for field, value in filters.items():
+                    if isinstance(value, (list, tuple)):
+                        for v in value:
+                            filter_parts.append(f"{field}={self._format_filter_value(v)}")
+                    else:
+                        filter_parts.append(f"{field}={self._format_filter_value(value)}")
+            
+            if filter_parts:
+                query_parts.append(f"filter={';'.join(filter_parts)}")
+        
+        if order:
+            query_parts.append(f"order={order}")
+        
+        if limit is not None:
+            query_parts.append(f"limit={limit}")
+        
+        if expand:
+            query_parts.append(f"expand={expand}")
+        
+        for key, value in kwargs.items():
+            if value is not None:
+                query_parts.append(f"{key}={self._format_filter_value(value)}")
+        
+        if not query_parts:
+            return ""
+        
+        return f"?{'&'.join(query_parts)}"
+    
+    def _format_filter_value(self, value: Any) -> str:
+        """
+        Форматировать значение для фильтра
+        
+        Args:
+            value: Значение для фильтрации
+            
+        Returns:
+            str: Отформатированное значение
+        """
+        if isinstance(value, bool):
+            return str(value).lower()
+        elif isinstance(value, UUID):
+            return str(value)
+        elif isinstance(value, str):
+            if value.startswith("http://") or value.startswith("https://"):
+                return quote(value, safe='/:')
+            return quote(value, safe='')
+        else:
+            return str(value)
+    
+    async def get_products(
+        self, *,
+        filters: dict[str, Any] | list[Filter | tuple[str, Any]] | None = None,
+        order: str | None = None,
+        limit: int | None = None,
+    ) -> ProductsMSCollection:
+        """
+        Получить список товаров с возможностью фильтрации
+        
+        Args:
+            filters: Словарь или список Filter/кортежей для фильтрации.
+                    Словарь: {"поле": значение/список_значений}
+                    Список: [Filter(...), ...] или [("поле", значение), ...]
+                    Несколько значений одного поля объединяются через OR.
+                    Разные поля объединяются через AND.
+            order: Параметр сортировки (например, "name,asc")
+            limit: Лимит количества записей
         
         Returns:
             ProductsMSCollection: Коллекция товаров
         """
-        request_filter = (
-            f"?filter=pathName={ProductType.SNACK}"
-            f";pathName={ProductType.FOOD}"
-        )
-        url = f"{self._base_url}/entity/product{request_filter}"
+        query_string = self._build_query_string(filters=filters, order=order, limit=limit)
+        url = f"{self._base_url}/entity/product{query_string}"
 
         response = await self._async_get(url)
         if response is None:
             raise Exception("Не удалось получить продукты из API")
 
-        products_collection = ProductsMSCollection.model_validate(response)
+        return ProductsMSCollection.model_validate(response)
 
-        return products_collection
-
-    async def get_bundles(self) -> BundlesCollection:
-        request_filter = (
-            f"?filter=pathName={BundleType.COFFEE}"
-        )
-        url = f"{self._base_url}/entity/bundle{request_filter}"
-
-        response = await self._async_get(url)
-        if response is None:
-            raise Exception("Не удалось получить продукты из API")
-
-        bundles_collection = BundlesCollection.model_validate(response)
-
-        return bundles_collection
-
-    async def get_last_demand(self, warehouse_id: UUID, organization_id: UUID) -> Mapping | None:
+    async def get_bundles(
+        self, *,
+        filters: dict[str, Any] | list[Filter | tuple[str, Any]] | None = None,
+        order: str | None = None,
+        limit: int | None = None,
+    ) -> BundlesCollection:
         """
-        Получить последнюю отгрузку для склада
+        Получить список комплектов с возможностью фильтрации
         
         Args:
-            warehouse_id: ID склада
-            organization_id: ID организации
-            
+            filters: Словарь или список Filter/кортежей для фильтрации
+            order: Параметр сортировки (например, "name,asc")
+            limit: Лимит количества записей
+        
         Returns:
-            Mapping с данными отгрузки или None
+            BundlesCollection: Коллекция комплектов
         """
-        url = (
-            f"{self._base_url}/entity/demand"
-            f"?filter=organization=https://api.moysklad.ru/api/remap/1.2/entity/organization/{str(organization_id)}"
-            f";store=https://api.moysklad.ru/api/remap/1.2/entity/store/{str(warehouse_id)}"
-            f"&order=moment,desc"
-            f"&limit=100"
-        )
+        query_string = self._build_query_string(filters=filters, order=order, limit=limit)
+        url = f"{self._base_url}/entity/bundle{query_string}"
 
         response = await self._async_get(url)
         if response is None:
-            return None
+            raise Exception("Не удалось получить комплекты из API")
 
-        if isinstance(response, dict) and response.get("rows"):
-            rows = response["rows"]
-            if rows:
-                return rows[0]
-        return None
+        return BundlesCollection.model_validate(response)
+
+    async def get_demands(
+        self, *,
+        filters: dict[str, Any] | list[Filter | tuple[str, Any]] | None = None,
+        order: str | None = None,
+        limit: int | None = None,
+    ) -> Mapping:
+        """
+        Получить список отгрузок с возможностью фильтрации
+        
+        Args:
+            filters: Словарь или список Filter/кортежей для фильтрации.
+                    Для фильтрации по организации или складу используйте полные URL:
+                    {"organization": "https://api.moysklad.ru/api/remap/1.2/entity/organization/{id}"}
+            order: Параметр сортировки (например, "moment,desc")
+            limit: Лимит количества записей
+        
+        Returns:
+            Mapping с данными отгрузок
+        """
+        query_string = self._build_query_string(filters=filters, order=order, limit=limit)
+        url = f"{self._base_url}/entity/demand{query_string}"
+
+        response = await self._async_get(url)
+        if response is None:
+            raise Exception("Не удалось получить отгрузки из API")
+
+        return response
 
     async def create_demand(
             self,
@@ -283,25 +423,27 @@ class MoySkladAPIClient:
 
         return response
 
-    async def get_warehouse_stocks(self, store_id: UUID) -> ProductStocksMSCollection:
+    async def get_warehouse_stocks(
+        self, *,
+        filters: dict[str, Any] | list[Filter | tuple[str, Any]] | None = None,
+    ) -> ProductStocksMSCollection:
         """
-        Получить текущие остатки на складе
+        Получить текущие остатки на складе с возможностью фильтрации
         
         Args:
-            store_id: ID склада
-            
+            filters: Словарь или список Filter/кортежей для фильтрации.
+                    Например: {"storeId": "uuid-склада"}
+        
         Returns:
             ProductStocksMSCollection: Коллекция остатков
         """
-        request_filter = f"filter=storeId={str(store_id)}"
-
-        url = f"{self._base_url}/report/stock/bystore/current?{request_filter}"
+        query_string = self._build_query_string(filters=filters)
+        url = f"{self._base_url}/report/stock/bystore/current{query_string}"
 
         response = await self._async_get(url)
         if response is None:
-            raise Exception(f"Не удалось получить остатки склада {store_id} из API")
+            raise Exception("Не удалось получить остатки из API")
 
-        # API возвращает массив напрямую, оборачиваем в структуру с rows
         if isinstance(response, list):
             response_data = {"rows": response}
         elif isinstance(response, dict) and "rows" in response:
@@ -309,40 +451,35 @@ class MoySkladAPIClient:
         else:
             response_data = {"rows": response}
 
-        stocks_collection = ProductStocksMSCollection.model_validate(response_data)
-
-        return stocks_collection
+        return ProductStocksMSCollection.model_validate(response_data)
 
     async def get_warehouse_stocks_with_moment(
-            self,
-            store_id: UUID,
-            moment: datetime
+        self,
+        filters: dict[str, Any] | list[Filter | tuple[str, Any]] | None = None,
+        expand: str | None = "meta",
     ) -> ProductExpandStocksMSCollection:
         """
-        Получить остатки на складе на определенный момент времени
+        Получить остатки на складе на определенный момент времени с возможностью фильтрации
         
         Args:
-            store_id: ID склада
-            moment: Момент времени
-            
+            filters: Словарь или список Filter/кортежей для фильтрации.
+                    Для фильтрации по моменту времени используйте:
+                    {"moment": "2025-01-01T12:00:00"}
+                    Для фильтрации по складу используйте полный URL:
+                    {"store": "https://api.moysklad.ru/api/remap/1.2/entity/store/{id}"}
+            expand: Параметр расширения (по умолчанию "meta")
+        
         Returns:
             ProductExpandStocksMSCollection: Коллекция остатков
         """
-        st_api_format = MSTime.datetime_to_str_ms(moment)
-
-        request_filter = (
-            f"filter=moment={st_api_format}"
-            f";store=https://api.moysklad.ru/api/remap/1.2/entity/store/{str(store_id)}"
-        )
-        url = f"{self._base_url}/report/stock/all?{request_filter}&expand=meta"
+        query_string = self._build_query_string(filters=filters, expand=expand)
+        url = f"{self._base_url}/report/stock/all{query_string}"
 
         response = await self._async_get(url)
         if response is None:
-            raise Exception(f"Не удалось получить остатки склада {store_id} на момент {moment} из API")
+            raise Exception("Не удалось получить остатки из API")
 
-        stocks_collection = ProductExpandStocksMSCollection.model_validate(response)
-
-        return stocks_collection
+        return ProductExpandStocksMSCollection.model_validate(response)
 
     async def _async_get(self, url: str):
         """Асинхронный GET запрос"""
