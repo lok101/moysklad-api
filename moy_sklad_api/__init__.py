@@ -9,14 +9,15 @@ from moy_sklad_api.client import Filter, MoySkladAPIClient
 from moy_sklad_api.models import (
     ProductsMSCollection,
     ProductMSModel,
-    ProductStocksMSCollection,
-    ProductStocksMSModel,
-    ProductExpandStocksMSCollection,
-    ProductExpandStocksMSModel,
+    ProductStockSCollection,
+    ProductStocksModel,
+    ProductExpandStocksCollection,
+    ProductExpandStocksModel,
     WarehouseCollection,
     WarehouseModel,
     BundlesCollection,
     BundleModel,
+    DemandsCollection,
 )
 from moy_sklad_api.enums import (
     EntityType,
@@ -31,13 +32,14 @@ __all__ = [
     "MoySkladAPIClient",
     "ProductsMSCollection",
     "ProductMSModel",
-    "ProductStocksMSCollection",
-    "ProductStocksMSModel",
-    "ProductExpandStocksMSCollection",
-    "ProductExpandStocksMSModel",
+    "ProductStockSCollection",
+    "ProductStocksModel",
+    "ProductExpandStocksCollection",
+    "ProductExpandStocksModel",
     "WarehouseCollection",
     "WarehouseModel",
     "BundlesCollection",
     "BundleModel",
     "EntityType",
+    "DemandsCollection"
 ]

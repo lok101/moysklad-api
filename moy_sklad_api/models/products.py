@@ -20,3 +20,6 @@ class ProductMSModel(BaseModel):
 class ProductsMSCollection(BaseModel):
     """Коллекция товаров из МойСклад"""
     items: Annotated[list[ProductMSModel], Field(validation_alias="rows")]
+
+    def get_all(self) -> list[ProductMSModel]:
+        return self.items.copy()

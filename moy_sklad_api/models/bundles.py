@@ -15,3 +15,6 @@ class BundleModel(BaseModel):
 class BundlesCollection(BaseModel):
     """Коллекция комплектов из МойСклад"""
     items: Annotated[list[BundleModel], Field(validation_alias="rows")]
+
+    def get_all(self) -> list[BundleModel]:
+        return self.items.copy()

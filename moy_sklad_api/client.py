@@ -13,13 +13,14 @@ import requests
 
 from moy_sklad_api.exceptions import MoySkladValidationError
 from moy_sklad_api.models import (
-    ProductStocksMSCollection,
-    ProductExpandStocksMSCollection,
+    ProductStockSCollection,
+    ProductExpandStocksCollection,
     ProductsMSCollection,
     ProductMSModel,
     WarehouseCollection,
     WarehouseModel,
     BundlesCollection,
+    DemandsCollection
 )
 from moy_sklad_api.enums import EntityType
 from moy_sklad_api.data_templates import generate_metadata
@@ -31,10 +32,10 @@ class Filter:
     """Класс для представления одного условия фильтрации"""
     field: str
     value: Any
-    
+
     def to_string(self) -> str:
         return f"{self.field}={self._format_value(self.value)}"
-    
+
     @staticmethod
     def _format_value(value: Any) -> str:
         if isinstance(value, bool):
@@ -71,7 +72,7 @@ class MoySkladAPIClient:
             "Accept-Encoding": "gzip",
             "Content-Type": "application/json"
         }
-        
+
         if session is None:
             self._session = aiohttp.ClientSession()
             self._own_session = True
@@ -80,10 +81,10 @@ class MoySkladAPIClient:
             self._own_session = False
 
     async def get_warehouses(
-        self, *,
-        filters: dict[str, Any] | list[Filter | tuple[str, Any]] | None = None,
-        order: str | None = None,
-        limit: int | None = None,
+            self, *,
+            filters: dict[str, Any] | list[Filter | tuple[str, Any]] | None = None,
+            order: str | None = None,
+            limit: int | None = None,
     ) -> WarehouseCollection:
         """
         Получить список складов с возможностью фильтрации
@@ -98,11 +99,11 @@ class MoySkladAPIClient:
         """
         query_string = self._build_query_string(filters=filters, order=order, limit=limit)
         url = f"{self._base_url}/entity/store{query_string}"
-        
+
         response = await self._async_get(url)
         if response is None:
             raise Exception("Не удалось получить склады из API")
-        
+
         return WarehouseCollection.model_validate(response)
 
     async def get_warehouse_by_id(self, warehouse_id: str | UUID) -> WarehouseModel | None:
@@ -126,12 +127,12 @@ class MoySkladAPIClient:
         return store_model
 
     def _build_query_string(
-        self,
-        filters: dict[str, Any] | list[Filter | tuple[str, Any]] | None = None,
-        order: str | None = None,
-        limit: int | None = None,
-        expand: str | None = None,
-        **kwargs: Any
+            self,
+            filters: dict[str, Any] | list[Filter | tuple[str, Any]] | None = None,
+            order: str | None = None,
+            limit: int | None = None,
+            expand: str | None = None,
+            **kwargs: Any
     ) -> str:
         """
         Построить строку query параметров для API МойСклад
@@ -151,10 +152,10 @@ class MoySkladAPIClient:
             str: Строка query параметров вида "?filter=...&order=...&limit=..."
         """
         query_parts = []
-        
+
         if filters:
             filter_parts = []
-            
+
             if isinstance(filters, list):
                 for item in filters:
                     if isinstance(item, Filter):
@@ -173,28 +174,28 @@ class MoySkladAPIClient:
                             filter_parts.append(f"{field}={self._format_filter_value(v)}")
                     else:
                         filter_parts.append(f"{field}={self._format_filter_value(value)}")
-            
+
             if filter_parts:
                 query_parts.append(f"filter={';'.join(filter_parts)}")
-        
+
         if order:
             query_parts.append(f"order={order}")
-        
+
         if limit is not None:
             query_parts.append(f"limit={limit}")
-        
+
         if expand:
             query_parts.append(f"expand={expand}")
-        
+
         for key, value in kwargs.items():
             if value is not None:
                 query_parts.append(f"{key}={self._format_filter_value(value)}")
-        
+
         if not query_parts:
             return ""
-        
+
         return f"?{'&'.join(query_parts)}"
-    
+
     def _format_filter_value(self, value: Any) -> str:
         """
         Форматировать значение для фильтра
@@ -215,12 +216,12 @@ class MoySkladAPIClient:
             return quote(value, safe='')
         else:
             return str(value)
-    
+
     async def get_products(
-        self, *,
-        filters: dict[str, Any] | list[Filter | tuple[str, Any]] | None = None,
-        order: str | None = None,
-        limit: int | None = None,
+            self, *,
+            filters: dict[str, Any] | list[Filter | tuple[str, Any]] | None = None,
+            order: str | None = None,
+            limit: int | None = None,
     ) -> ProductsMSCollection:
         """
         Получить список товаров с возможностью фильтрации
@@ -247,10 +248,10 @@ class MoySkladAPIClient:
         return ProductsMSCollection.model_validate(response)
 
     async def get_bundles(
-        self, *,
-        filters: dict[str, Any] | list[Filter | tuple[str, Any]] | None = None,
-        order: str | None = None,
-        limit: int | None = None,
+            self, *,
+            filters: dict[str, Any] | list[Filter | tuple[str, Any]] | None = None,
+            order: str | None = None,
+            limit: int | None = None,
     ) -> BundlesCollection:
         """
         Получить список комплектов с возможностью фильтрации
@@ -273,11 +274,11 @@ class MoySkladAPIClient:
         return BundlesCollection.model_validate(response)
 
     async def get_demands(
-        self, *,
-        filters: dict[str, Any] | list[Filter | tuple[str, Any]] | None = None,
-        order: str | None = None,
-        limit: int | None = None,
-    ) -> Mapping:
+            self, *,
+            filters: dict[str, Any] | list[Filter | tuple[str, Any]] | None = None,
+            order: str | None = None,
+            limit: int | None = None,
+    ) -> DemandsCollection:
         """
         Получить список отгрузок с возможностью фильтрации
         
@@ -298,7 +299,7 @@ class MoySkladAPIClient:
         if response is None:
             raise Exception("Не удалось получить отгрузки из API")
 
-        return response
+        return DemandsCollection.model_validate(response)
 
     async def create_demand(
             self,
@@ -424,9 +425,9 @@ class MoySkladAPIClient:
         return response
 
     async def get_warehouse_stocks(
-        self, *,
-        filters: dict[str, Any] | list[Filter | tuple[str, Any]] | None = None,
-    ) -> ProductStocksMSCollection:
+            self, *,
+            filters: dict[str, Any] | list[Filter | tuple[str, Any]] | None = None,
+    ) -> ProductStockSCollection:
         """
         Получить текущие остатки на складе с возможностью фильтрации
         
@@ -435,7 +436,7 @@ class MoySkladAPIClient:
                     Например: {"storeId": "uuid-склада"}
         
         Returns:
-            ProductStocksMSCollection: Коллекция остатков
+            ProductStockSCollection: Коллекция остатков
         """
         query_string = self._build_query_string(filters=filters)
         url = f"{self._base_url}/report/stock/bystore/current{query_string}"
@@ -451,13 +452,13 @@ class MoySkladAPIClient:
         else:
             response_data = {"rows": response}
 
-        return ProductStocksMSCollection.model_validate(response_data)
+        return ProductStockSCollection.model_validate(response_data)
 
     async def get_warehouse_stocks_with_moment(
-        self,
-        filters: dict[str, Any] | list[Filter | tuple[str, Any]] | None = None,
-        expand: str | None = "meta",
-    ) -> ProductExpandStocksMSCollection:
+            self,
+            filters: dict[str, Any] | list[Filter | tuple[str, Any]] | None = None,
+            expand: str | None = "meta",
+    ) -> ProductExpandStocksCollection:
         """
         Получить остатки на складе на определенный момент времени с возможностью фильтрации
         
@@ -470,7 +471,7 @@ class MoySkladAPIClient:
             expand: Параметр расширения (по умолчанию "meta")
         
         Returns:
-            ProductExpandStocksMSCollection: Коллекция остатков
+            ProductExpandStocksCollection: Коллекция остатков
         """
         query_string = self._build_query_string(filters=filters, expand=expand)
         url = f"{self._base_url}/report/stock/all{query_string}"
@@ -479,7 +480,7 @@ class MoySkladAPIClient:
         if response is None:
             raise Exception("Не удалось получить остатки из API")
 
-        return ProductExpandStocksMSCollection.model_validate(response)
+        return ProductExpandStocksCollection.model_validate(response)
 
     async def _async_get(self, url: str):
         """Асинхронный GET запрос"""
@@ -500,17 +501,17 @@ class MoySkladAPIClient:
 
         except aiohttp.ClientError as e:
             raise Exception(f"Ошибка сети: {e}")
-    
+
     async def close(self):
         """Закрыть сессию, если она была создана клиентом"""
         if self._own_session and self._session is not None:
             await self._session.close()
             self._session = None
-    
+
     async def __aenter__(self):
         """Поддержка async context manager"""
         return self
-    
+
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Закрытие сессии при выходе из context manager"""
         await self.close()

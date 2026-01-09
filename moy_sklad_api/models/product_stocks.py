@@ -18,24 +18,30 @@ def extract_id(data: dict):
     return entity_without_filter
 
 
-class ProductStocksMSModel(BaseModel):
+class ProductStocksModel(BaseModel):
     """Модель остатков товара из МойСклад"""
     product_id: Annotated[UUID, Field(validation_alias="assortmentId")]
     quantity: Annotated[float, Field(validation_alias="stock")]
 
 
-class ProductStocksMSCollection(BaseModel):
+class ProductStockSCollection(BaseModel):
     """Коллекция остатков товаров из МойСклад"""
-    items: Annotated[list[ProductStocksMSModel], Field(validation_alias="rows")]
+    items: Annotated[list[ProductStocksModel], Field(validation_alias="rows")]
+
+    def get_all(self) -> list[ProductStocksModel]:
+        return self.items.copy()
 
 
-class ProductExpandStocksMSModel(BaseModel):
+class ProductExpandStocksModel(BaseModel):
     """Модель остатков товара с расширенными метаданными"""
     product_id: Annotated[UUID, Field(validation_alias="meta"), BeforeValidator(extract_id)]
     quantity: Annotated[float, Field(validation_alias="stock")]
 
 
-class ProductExpandStocksMSCollection(BaseModel):
+class ProductExpandStocksCollection(BaseModel):
     """Коллекция остатков товаров с расширенными метаданными"""
-    items: Annotated[list[ProductExpandStocksMSModel], Field(validation_alias="rows")]
+    items: Annotated[list[ProductExpandStocksModel], Field(validation_alias="rows")]
+
+    def get_all(self) -> list[ProductExpandStocksModel]:
+        return self.items.copy()
 

@@ -19,3 +19,5 @@ class WarehouseCollection(BaseModel):
     """Коллекция складов из МойСклад"""
     items: Annotated[list[WarehouseModel], Field(validation_alias="rows")]
 
+    def get_all(self) -> list[WarehouseModel]:
+        return self.items.copy()
