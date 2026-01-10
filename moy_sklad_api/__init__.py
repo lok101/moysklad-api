@@ -7,8 +7,8 @@ from dotenv import load_dotenv
 
 from moy_sklad_api.client import Filter, MoySkladAPIClient
 from moy_sklad_api.models import (
-    ProductsMSCollection,
-    ProductMSModel,
+    ProductsCollection,
+    ProductModel,
     ProductStockSCollection,
     ProductStocksModel,
     ProductExpandStocksCollection,
@@ -17,7 +17,7 @@ from moy_sklad_api.models import (
     WarehouseModel,
     BundlesCollection,
     BundleModel,
-    DemandsCollection,
+    DemandsCollection, DemandModel,
 )
 from moy_sklad_api.enums import (
     EntityType,
@@ -30,8 +30,8 @@ __version__ = "0.1.0"
 __all__ = [
     "Filter",
     "MoySkladAPIClient",
-    "ProductsMSCollection",
-    "ProductMSModel",
+    "ProductsCollection",
+    "ProductModel",
     "ProductStockSCollection",
     "ProductStocksModel",
     "ProductExpandStocksCollection",
@@ -41,5 +41,6 @@ __all__ = [
     "BundlesCollection",
     "BundleModel",
     "EntityType",
-    "DemandsCollection"
+    "DemandsCollection",
+    "DemandModel"
 ]

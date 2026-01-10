@@ -24,28 +24,29 @@ from datetime import datetime
 from uuid import UUID
 from moy_sklad_api import MoySkladAPIClient
 
+
 async def main():
     # Создаем клиент
     client = MoySkladAPIClient(access_token="your_access_token")
-    
+
     # Получаем список товаров
     products = await client.get_products()
     print(f"Найдено товаров: {len(products.items)}")
-    
+
     # Получаем склад по ID
     warehouse_id = UUID("cc244c2d-55a8-11ed-0a80-023100027dcb")
     warehouse = await client.get_warehouse_by_id(warehouse_id)
     print(f"Склад: {warehouse.name}")
-    
+
     # Получаем остатки на складе
     stocks = await client.get_warehouse_stocks(warehouse_id)
     print(f"Найдено позиций: {len(stocks.items)}")
-    
+
     # Создаем перемещение
     target_store = UUID("c40606fc-cab9-11f0-0a80-0816000c4e90")
     source_store = UUID("cc244c2d-55a8-11ed-0a80-023100027dcb")
     organization = UUID("1783080e-d9e8-11ed-0a80-0145000af55f")
-    
+
     move_result = await client.create_move(
         target_store_id=target_store,
         positions=[(product_id, 10)],
@@ -55,27 +56,12 @@ async def main():
     )
     print(f"Создано перемещение: {move_result['id']}")
 
+
 if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-### Работа с датами
 
-```python
-from moy_sklad_api import MoySkladAPIClient
-from moy_sklad_api.ms_time import MSTime
-from datetime import datetime
-
-client = MoySkladAPIClient(access_token="your_token")
-
-# Получить остатки на определенный момент времени
-moment = datetime(2025, 1, 1, 12, 0, 0)
-stocks = await client.get_warehouse_stocks_with_moment(warehouse_id, moment)
-
-# Конвертация дат
-dt_str = MSTime.datetime_to_str_ms(datetime.now())
-dt = MSTime.datetime_from_str_ms("2025-01-01 12:00:00")
-```
 
 ## API
 
@@ -110,7 +96,6 @@ dt = MSTime.datetime_from_str_ms("2025-01-01 12:00:00")
 
 ### Утилиты
 
-- `MSTime` - Утилиты для работы с датами в форматах MS API
 - `generate_metadata()` - Генерация метаданных для сущностей
 - `ProductType` - Типы товаров
 - `BundleType` - Типы комплектов

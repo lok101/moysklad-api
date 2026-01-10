@@ -7,8 +7,10 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from moy_sklad_api.models.base_collection import BaseCollection
 
-class ProductMSModel(BaseModel):
+
+class ProductModel(BaseModel):
     """Модель товара из МойСклад"""
     id: UUID
     name: str
@@ -17,9 +19,6 @@ class ProductMSModel(BaseModel):
     type: str = Field(validation_alias="pathName")
 
 
-class ProductsMSCollection(BaseModel):
+class ProductsCollection(BaseCollection[ProductModel]):
     """Коллекция товаров из МойСклад"""
-    items: Annotated[list[ProductMSModel], Field(validation_alias="rows")]
-
-    def get_all(self) -> list[ProductMSModel]:
-        return self.items.copy()
+    items: Annotated[list[ProductModel], Field(validation_alias="rows")]

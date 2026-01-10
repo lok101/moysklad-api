@@ -5,16 +5,21 @@ from moy_sklad_api.models.bundles import (
     BundleModel,
     BundlesCollection
 )
-from moy_sklad_api.models.demands import DemandsCollection
+from moy_sklad_api.models.demands import (
+    DemandsCollection,
+    DemandModel
+)
+from moy_sklad_api.models.product_expand_stocks import (
+    ProductExpandStocksCollection,
+    ProductExpandStocksModel
+)
 from moy_sklad_api.models.products import (
-    ProductsMSCollection,
-    ProductMSModel,
+    ProductsCollection,
+    ProductModel,
 )
 from moy_sklad_api.models.product_stocks import (
     ProductStockSCollection,
     ProductStocksModel,
-    ProductExpandStocksCollection,
-    ProductExpandStocksModel,
 )
 from moy_sklad_api.models.warehouses import (
     WarehouseCollection,
@@ -23,8 +28,8 @@ from moy_sklad_api.models.warehouses import (
 
 __all__ = [
     # Products
-    "ProductsMSCollection",
-    "ProductMSModel",
+    "ProductsCollection",
+    "ProductModel",
     # Bundles
     "BundleModel",
     "BundlesCollection",
@@ -37,5 +42,6 @@ __all__ = [
     "WarehouseCollection",
     "WarehouseModel",
     # Demands
-    "DemandsCollection"
+    "DemandsCollection",
+    "DemandModel"
 ]

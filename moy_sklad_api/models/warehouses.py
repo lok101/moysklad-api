@@ -7,6 +7,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from moy_sklad_api.models.base_collection import BaseCollection
+
 
 class WarehouseModel(BaseModel):
     """Модель склада из МойСклад"""
@@ -15,9 +17,6 @@ class WarehouseModel(BaseModel):
     code: int
 
 
-class WarehouseCollection(BaseModel):
+class WarehouseCollection(BaseCollection[WarehouseModel]):
     """Коллекция складов из МойСклад"""
     items: Annotated[list[WarehouseModel], Field(validation_alias="rows")]
-
-    def get_all(self) -> list[WarehouseModel]:
-        return self.items.copy()

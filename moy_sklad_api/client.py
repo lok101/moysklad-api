@@ -15,8 +15,8 @@ from moy_sklad_api.exceptions import MoySkladValidationError
 from moy_sklad_api.models import (
     ProductStockSCollection,
     ProductExpandStocksCollection,
-    ProductsMSCollection,
-    ProductMSModel,
+    ProductsCollection,
+    ProductModel,
     WarehouseCollection,
     WarehouseModel,
     BundlesCollection,
@@ -24,7 +24,7 @@ from moy_sklad_api.models import (
 )
 from moy_sklad_api.enums import EntityType
 from moy_sklad_api.data_templates import generate_metadata
-from moy_sklad_api.ms_time import MSTime
+from moy_sklad_api.models.demands import DemandModel
 
 
 @dataclass
@@ -136,7 +136,7 @@ class MoySkladAPIClient:
     ) -> str:
         """
         Построить строку query параметров для API МойСклад
-        
+
         Args:
             filters: Словарь или список Filter/кортежей для фильтрации.
                     Словарь: {"поле": значение/список_значений}
@@ -147,7 +147,7 @@ class MoySkladAPIClient:
             limit: Лимит количества записей
             expand: Параметр расширения (например, "meta")
             **kwargs: Дополнительные query параметры
-        
+
         Returns:
             str: Строка query параметров вида "?filter=...&order=...&limit=..."
         """
@@ -222,7 +222,7 @@ class MoySkladAPIClient:
             filters: dict[str, Any] | list[Filter | tuple[str, Any]] | None = None,
             order: str | None = None,
             limit: int | None = None,
-    ) -> ProductsMSCollection:
+    ) -> ProductsCollection:
         """
         Получить список товаров с возможностью фильтрации
         
@@ -236,7 +236,7 @@ class MoySkladAPIClient:
             limit: Лимит количества записей
         
         Returns:
-            ProductsMSCollection: Коллекция товаров
+            ProductsCollection: Коллекция товаров
         """
         query_string = self._build_query_string(filters=filters, order=order, limit=limit)
         url = f"{self._base_url}/entity/product{query_string}"
@@ -245,7 +245,7 @@ class MoySkladAPIClient:
         if response is None:
             raise Exception("Не удалось получить продукты из API")
 
-        return ProductsMSCollection.model_validate(response)
+        return ProductsCollection.model_validate(response)
 
     async def get_bundles(
             self, *,
@@ -305,12 +305,12 @@ class MoySkladAPIClient:
             self,
             warehouse_id: UUID,
             positions: list[tuple[UUID, int, int]],
-            moment: str,
+            moment: datetime,
             organization_id: UUID,
             agent_id: UUID,
             project_id: UUID,
             sales_channel_id: UUID,
-    ) -> Mapping:
+    ) -> DemandModel:
         """
         Создать документ отгрузки
         
@@ -334,8 +334,9 @@ class MoySkladAPIClient:
         project_metadata = {"meta": generate_metadata(project_id, EntityType.PROJECT)}
         sales_channel_metadata = {"meta": generate_metadata(sales_channel_id, EntityType.SALES_CHANNEL)}
 
+
         data = {
-            "moment": moment,
+            "moment": moment.isoformat(),
             "organization": organization_metadata,
             "store": store_metadata,
             "agent": agent_metadata,
@@ -354,9 +355,9 @@ class MoySkladAPIClient:
 
         response = await self._async_post(url, data)
 
-        return response
+        return DemandModel.model_validate(response)
 
-    async def get_product_by_id(self, product_id: UUID | str) -> ProductMSModel:
+    async def get_product_by_id(self, product_id: UUID | str) -> ProductModel:
         """
         Получить товар по ID
         
@@ -364,7 +365,7 @@ class MoySkladAPIClient:
             product_id: ID товара
             
         Returns:
-            ProductMSModel: Модель товара
+            ProductModel: Модель товара
         """
         url = f"{self._base_url}/entity/product/{str(product_id)}"
 
@@ -372,7 +373,7 @@ class MoySkladAPIClient:
         if response is None:
             raise Exception(f"Не удалось получить продукт {product_id} из API")
 
-        product_model = ProductMSModel.model_validate(response)
+        product_model = ProductModel.model_validate(response)
 
         return product_model
 
@@ -400,7 +401,7 @@ class MoySkladAPIClient:
         url = f"{self._base_url}/entity/move"
 
         data = {
-            "moment": MSTime.datetime_to_str_ms(moment),
+            "moment": moment.isoformat(),
             "comment": "Создано автоматически.",
             "organization": {
                 "meta": generate_metadata(organization_id, EntityType.ORGANIZATION)
