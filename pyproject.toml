@@ -1,6 +1,6 @@
 [project]
 name = "moy-sklad-api"
-version = "0.2.3"
+version = "0.2.4"
 description = "Клиент для работы с API МойСклад (api.moysklad.ru)"
 readme = "README.md"
 requires-python = ">=3.10"
