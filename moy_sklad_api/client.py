@@ -69,7 +69,8 @@ class MoySkladAPIClient:
 
         self._headers = {
             "Authorization": f"Bearer {access_token}",
-            "Accept-Encoding": "gzip"
+            "Accept-Encoding": "gzip",
+            "Content-Type": "application/json"
         }
 
         if session is None:
@@ -335,7 +336,7 @@ class MoySkladAPIClient:
 
 
         data = {
-            "moment": moment.replace(tzinfo=None, microsecond=0).isoformat(sep=" "),
+            "moment": moment.isoformat(),
             "organization": organization_metadata,
             "store": store_metadata,
             "agent": agent_metadata,
@@ -400,7 +401,7 @@ class MoySkladAPIClient:
         url = f"{self._base_url}/entity/move"
 
         data = {
-            "moment": moment.replace(tzinfo=None, microsecond=0).isoformat(sep=" "),
+            "moment": moment.isoformat(),
             "comment": "Создано автоматически.",
             "organization": {
                 "meta": generate_metadata(organization_id, EntityType.ORGANIZATION)
@@ -496,15 +497,11 @@ class MoySkladAPIClient:
         """Асинхронный POST запрос"""
         try:
             async with self._session.post(url, headers=self._headers, json=data) as response:
-                response_data = await response.json()
-                if response.status >= 400:
-                    error_info = response_data if isinstance(response_data, dict) else {"error": str(response_data)}
-                    raise Exception(f"Ошибка HTTP {response.status}: {error_info}")
-                return response_data
-        except Exception as e:
-            if "Ошибка HTTP" in str(e):
-                raise
-            raise Exception(f"Ошибка при выполнении запроса: {e}")
+                response.raise_for_status()
+                return await response.json()
+
+        except aiohttp.ClientError as e:
+            raise Exception(f"Ошибка сети: {e}")
 
     async def close(self):
         """Закрыть сессию, если она была создана клиентом"""
