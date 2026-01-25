@@ -9,7 +9,6 @@ from urllib.parse import quote
 from uuid import UUID
 
 import aiohttp
-import requests
 
 from moy_sklad_api.exceptions import MoySkladValidationError
 from moy_sklad_api.models import (
@@ -34,10 +33,10 @@ class Filter:
     value: Any
 
     def to_string(self) -> str:
-        return f"{self.field}={self._format_value(self.value)}"
+        return f"{self.field}={self.format_value(self.value)}"
 
     @staticmethod
-    def _format_value(value: Any) -> str:
+    def format_value(value: Any) -> str:
         if isinstance(value, bool):
             return str(value).lower()
         elif isinstance(value, UUID):
@@ -125,8 +124,8 @@ class MoySkladAPIClient:
 
         return store_model
 
+    @staticmethod
     def _build_query_string(
-            self,
             filters: dict[str, Any] | list[Filter | tuple[str, Any]] | None = None,
             order: str | None = None,
             limit: int | None = None,
@@ -163,16 +162,16 @@ class MoySkladAPIClient:
                         field, value = item
                         if isinstance(value, (list, tuple)):
                             for v in value:
-                                filter_parts.append(f"{field}={self._format_filter_value(v)}")
+                                filter_parts.append(f"{field}={Filter.format_value(v)}")
                         else:
-                            filter_parts.append(f"{field}={self._format_filter_value(value)}")
+                            filter_parts.append(f"{field}={Filter.format_value(value)}")
             elif isinstance(filters, dict):
                 for field, value in filters.items():
                     if isinstance(value, (list, tuple)):
                         for v in value:
-                            filter_parts.append(f"{field}={self._format_filter_value(v)}")
+                            filter_parts.append(f"{field}={Filter.format_value(v)}")
                     else:
-                        filter_parts.append(f"{field}={self._format_filter_value(value)}")
+                        filter_parts.append(f"{field}={Filter.format_value(value)}")
 
             if filter_parts:
                 query_parts.append(f"filter={';'.join(filter_parts)}")
@@ -188,33 +187,33 @@ class MoySkladAPIClient:
 
         for key, value in kwargs.items():
             if value is not None:
-                query_parts.append(f"{key}={self._format_filter_value(value)}")
+                query_parts.append(f"{key}={Filter.format_value}")
 
         if not query_parts:
             return ""
 
         return f"?{'&'.join(query_parts)}"
 
-    def _format_filter_value(self, value: Any) -> str:
-        """
-        Форматировать значение для фильтра
-        
-        Args:
-            value: Значение для фильтрации
-            
-        Returns:
-            str: Отформатированное значение
-        """
-        if isinstance(value, bool):
-            return str(value).lower()
-        elif isinstance(value, UUID):
-            return str(value)
-        elif isinstance(value, str):
-            if value.startswith("http://") or value.startswith("https://"):
-                return quote(value, safe='/:')
-            return quote(value, safe='')
-        else:
-            return str(value)
+    # def _format_filter_value(self, value: Any) -> str:
+    #     """
+    #     Форматировать значение для фильтра
+    #
+    #     Args:
+    #         value: Значение для фильтрации
+    #
+    #     Returns:
+    #         str: Отформатированное значение
+    #     """
+    #     if isinstance(value, bool):
+    #         return str(value).lower()
+    #     elif isinstance(value, UUID):
+    #         return str(value)
+    #     elif isinstance(value, str):
+    #         if value.startswith("http://") or value.startswith("https://"):
+    #             return quote(value, safe='/:')
+    #         return quote(value, safe='')
+    #     else:
+    #         return str(value)
 
     async def get_products(
             self, *,
@@ -332,7 +331,6 @@ class MoySkladAPIClient:
         agent_metadata = {"meta": generate_metadata(agent_id, EntityType.AGENT)}
         project_metadata = {"meta": generate_metadata(project_id, EntityType.PROJECT)}
         sales_channel_metadata = {"meta": generate_metadata(sales_channel_id, EntityType.SALES_CHANNEL)}
-
 
         data = {
             "moment": moment.replace(tzinfo=None, microsecond=0).isoformat(sep=" "),
@@ -519,9 +517,3 @@ class MoySkladAPIClient:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Закрытие сессии при выходе из context manager"""
         await self.close()
-
-    def _sync_post(self, url, data: dict[str, Any]):
-        """Синхронный POST запрос"""
-        response = requests.post(url=url, headers=self._headers, json=data)
-        response.raise_for_status()
-        return response.json()

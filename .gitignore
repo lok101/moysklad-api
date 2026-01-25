@@ -64,3 +64,4 @@ Desktop.ini
 .env.local
 
 /__test__.py
+/.cursor/
