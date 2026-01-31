@@ -17,6 +17,6 @@ class EntityType(enum.StrEnum):
     ATTRIBUTE = 'attributemetadata'
 
 
-class ProductType:
+class ProductType(enum.StrEnum):
     SINGLE_PRODUCT = 'product'
     COMPOSITE_PRODUCT = 'bundle'

@@ -21,6 +21,7 @@ from moy_sklad_api.models import (
 )
 from moy_sklad_api.enums import (
     EntityType,
+    ProductType,
 )
 
 load_dotenv()
@@ -41,6 +42,7 @@ __all__ = [
     "BundlesCollection",
     "BundleModel",
     "EntityType",
+    "ProductType",
     "DemandsCollection",
-    "DemandModel"
+    "DemandModel",
 ]
