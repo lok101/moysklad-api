@@ -20,7 +20,7 @@ def convert_to_project_timezone(dt: datetime) -> datetime:
 
 def parse_api_datetime(value: Any) -> datetime:
     dt = datetime.fromisoformat(value)
-    dt.replace(tzinfo=PROJECT_TIMEZONE)
+    dt = dt.replace(tzinfo=PROJECT_TIMEZONE)
     return convert_to_project_timezone(dt)
 
 
