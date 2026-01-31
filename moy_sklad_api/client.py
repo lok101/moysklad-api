@@ -24,6 +24,7 @@ from moy_sklad_api.models import (
 from moy_sklad_api.enums import EntityType, ProductType
 from moy_sklad_api.data_templates import generate_metadata
 from moy_sklad_api.models.demands import DemandModel
+from moy_sklad_api.utils import convert_to_project_timezone, convert_from_project_timezone
 
 
 @dataclass
@@ -77,6 +78,11 @@ class MoySkladAPIClient:
         else:
             self._session = session
             self._own_session = False
+
+    async def _get_sales_channels(self) -> Mapping:
+        url = f"{self._base_url}/entity/saleschannel"
+
+        return await self._async_get(url)
 
     async def get_warehouses(
             self, *,
@@ -295,7 +301,7 @@ class MoySkladAPIClient:
         Args:
             warehouse_id: ID склада
             positions: Список позиций (product_id, quantity, price)
-            moment: Момент отгрузки в формате MS API
+            moment: Момент отгрузки (будет конвертирован в timezone проекта)
             organization_id: ID организации
             agent_id: ID контрагента
             project_id: ID проекта
@@ -306,6 +312,9 @@ class MoySkladAPIClient:
         """
         url = f"{self._base_url}/entity/demand"
 
+        moment = convert_to_project_timezone(moment)
+        moment_utc = convert_from_project_timezone(moment)
+
         store_metadata = {"meta": generate_metadata(warehouse_id, EntityType.STORE)}
         organization_metadata = {"meta": generate_metadata(organization_id, EntityType.ORGANIZATION)}
         agent_metadata = {"meta": generate_metadata(agent_id, EntityType.AGENT)}
@@ -313,7 +322,7 @@ class MoySkladAPIClient:
         sales_channel_metadata = {"meta": generate_metadata(sales_channel_id, EntityType.SALES_CHANNEL)}
 
         data = {
-            "moment": moment.replace(tzinfo=None, microsecond=0).isoformat(sep=" "),
+            "moment": moment_utc.replace(tzinfo=None, microsecond=0).isoformat(sep=" "),
             "organization": organization_metadata,
             "store": store_metadata,
             "agent": agent_metadata,
@@ -369,7 +378,7 @@ class MoySkladAPIClient:
             target_store_id: ID склада назначения
             positions: Список позиций (product_id, quantity)
             source_store_id: ID склада источника
-            moment: Момент перемещения
+            moment: Момент перемещения (будет конвертирован в timezone проекта)
             organization_id: ID организации
             
         Returns:
@@ -377,8 +386,11 @@ class MoySkladAPIClient:
         """
         url = f"{self._base_url}/entity/move"
 
+        moment = convert_to_project_timezone(moment)
+        moment_utc = convert_from_project_timezone(moment)
+
         data = {
-            "moment": moment.replace(tzinfo=None, microsecond=0).isoformat(sep=" "),
+            "moment": moment_utc.replace(tzinfo=None, microsecond=0).isoformat(sep=" "),
             "comment": "Создано автоматически.",
             "organization": {
                 "meta": generate_metadata(organization_id, EntityType.ORGANIZATION)
