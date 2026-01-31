@@ -24,7 +24,7 @@ from moy_sklad_api.models import (
 from moy_sklad_api.enums import EntityType, ProductType
 from moy_sklad_api.data_templates import generate_metadata
 from moy_sklad_api.models.demands import DemandModel
-from moy_sklad_api.utils import convert_to_project_timezone, convert_from_project_timezone
+from moy_sklad_api.utils import convert_to_project_timezone
 
 
 @dataclass
@@ -313,7 +313,6 @@ class MoySkladAPIClient:
         url = f"{self._base_url}/entity/demand"
 
         moment = convert_to_project_timezone(moment)
-        moment_utc = convert_from_project_timezone(moment)
 
         store_metadata = {"meta": generate_metadata(warehouse_id, EntityType.STORE)}
         organization_metadata = {"meta": generate_metadata(organization_id, EntityType.ORGANIZATION)}
@@ -322,7 +321,7 @@ class MoySkladAPIClient:
         sales_channel_metadata = {"meta": generate_metadata(sales_channel_id, EntityType.SALES_CHANNEL)}
 
         data = {
-            "moment": moment_utc.replace(tzinfo=None, microsecond=0).isoformat(sep=" "),
+            "moment": moment.replace(tzinfo=None, microsecond=0).isoformat(sep=" "),
             "organization": organization_metadata,
             "store": store_metadata,
             "agent": agent_metadata,
@@ -387,10 +386,9 @@ class MoySkladAPIClient:
         url = f"{self._base_url}/entity/move"
 
         moment = convert_to_project_timezone(moment)
-        moment_utc = convert_from_project_timezone(moment)
 
         data = {
-            "moment": moment_utc.replace(tzinfo=None, microsecond=0).isoformat(sep=" "),
+            "moment": moment.replace(tzinfo=None, microsecond=0).isoformat(sep=" "),
             "comment": "Создано автоматически.",
             "organization": {
                 "meta": generate_metadata(organization_id, EntityType.ORGANIZATION)

@@ -1,6 +1,7 @@
 from datetime import datetime, timezone, timedelta
 from typing import Any
 
+from moy_sklad_api.exceptions import MoySkladValidationError
 
 PROJECT_TIMEZONE = timezone(timedelta(hours=3))
 
@@ -11,41 +12,15 @@ def get_project_timezone() -> timezone:
 
 
 def convert_to_project_timezone(dt: datetime) -> datetime:
-    """
-    Конвертировать datetime в timezone проекта (UTC+3).
-    Если datetime naive, предполагается что он уже в UTC.
-    """
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
+        raise MoySkladValidationError("Необходимо указать tz у объекта datetime.")
+
     return dt.astimezone(PROJECT_TIMEZONE)
 
 
-def convert_from_project_timezone(dt: datetime) -> datetime:
-    """
-    Конвертировать datetime из timezone проекта в UTC (для отправки в API).
-    Если datetime naive, предполагается что он уже в timezone проекта.
-    """
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=PROJECT_TIMEZONE)
-    return dt.astimezone(timezone.utc)
-
-
 def parse_api_datetime(value: Any) -> datetime:
-    """
-    Парсить datetime из API и конвертировать в timezone проекта.
-    API возвращает datetime в ISO формате, обычно в UTC.
-    """
-    if isinstance(value, str):
-        normalized = value.replace('Z', '+00:00')
-        try:
-            dt = datetime.fromisoformat(normalized)
-        except ValueError:
-            dt = datetime.fromisoformat(normalized.replace(' ', 'T'))
-    elif isinstance(value, datetime):
-        dt = value
-    else:
-        raise ValueError(f"Неверный тип для datetime: {type(value)}")
-    
+    dt = datetime.fromisoformat(value)
+    dt.replace(tzinfo=PROJECT_TIMEZONE)
     return convert_to_project_timezone(dt)
 
 
