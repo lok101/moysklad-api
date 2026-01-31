@@ -9,10 +9,14 @@ class EntityType(enum.StrEnum):
     """Типы сущностей в МойСклад"""
     PROJECT = 'project'
     STORE = 'store'
-    PRODUCT = 'product'
     ORGANIZATION = 'organization'
     AGENT = 'counterparty'
     MOVE = 'move'
     DEMAND = 'demand'
     SALES_CHANNEL = 'saleschannel'
     ATTRIBUTE = 'attributemetadata'
+
+
+class ProductType:
+    SINGLE_PRODUCT = 'product'
+    COMPOSITE_PRODUCT = 'bundle'

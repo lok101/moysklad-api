@@ -1,23 +1,8 @@
 [project]
 name = "moy-sklad-api"
 version = "0.2.4"
-description = "Клиент для работы с API МойСклад (api.moysklad.ru)"
 readme = "README.md"
 requires-python = ">=3.10"
-authors = [
-    {name = "Your Name", email = "your.email@example.com"}
-]
-license = {text = "MIT"}
-keywords = ["moysklad", "api", "client", "warehouse"]
-classifiers = [
-    "Development Status :: 4 - Beta",
-    "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-]
 
 dependencies = [
     "aiohttp>=3.13.2",

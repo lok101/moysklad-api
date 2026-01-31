@@ -4,10 +4,10 @@
 
 from uuid import UUID
 
-from moy_sklad_api.enums import EntityType
+from moy_sklad_api.enums import EntityType, ProductType
 
 
-def generate_metadata(entity_id: UUID, entity_type: EntityType) -> dict:
+def generate_metadata(entity_id: UUID, entity_type: EntityType | ProductType) -> dict:
     """
     Генерировать метаданные для сущности МойСклад
     
@@ -24,4 +24,3 @@ def generate_metadata(entity_id: UUID, entity_type: EntityType) -> dict:
         "type": f"{entity_type}",
         "mediaType": "application/json"
     }
-

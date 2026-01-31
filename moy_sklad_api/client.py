@@ -21,7 +21,7 @@ from moy_sklad_api.models import (
     BundlesCollection,
     DemandsCollection
 )
-from moy_sklad_api.enums import EntityType
+from moy_sklad_api.enums import EntityType, ProductType
 from moy_sklad_api.data_templates import generate_metadata
 from moy_sklad_api.models.demands import DemandModel
 
@@ -194,27 +194,6 @@ class MoySkladAPIClient:
 
         return f"?{'&'.join(query_parts)}"
 
-    # def _format_filter_value(self, value: Any) -> str:
-    #     """
-    #     Форматировать значение для фильтра
-    #
-    #     Args:
-    #         value: Значение для фильтрации
-    #
-    #     Returns:
-    #         str: Отформатированное значение
-    #     """
-    #     if isinstance(value, bool):
-    #         return str(value).lower()
-    #     elif isinstance(value, UUID):
-    #         return str(value)
-    #     elif isinstance(value, str):
-    #         if value.startswith("http://") or value.startswith("https://"):
-    #             return quote(value, safe='/:')
-    #         return quote(value, safe='')
-    #     else:
-    #         return str(value)
-
     async def get_products(
             self, *,
             filters: dict[str, Any] | list[Filter | tuple[str, Any]] | None = None,
@@ -308,6 +287,7 @@ class MoySkladAPIClient:
             agent_id: UUID,
             project_id: UUID,
             sales_channel_id: UUID,
+            product_type: ProductType
     ) -> DemandModel:
         """
         Создать документ отгрузки
@@ -345,7 +325,7 @@ class MoySkladAPIClient:
                     "quantity": quantity,
                     "price": price,
                     "assortment": {
-                        "meta": generate_metadata(product_id, EntityType.PRODUCT)
+                        "meta": generate_metadata(product_id, product_type)
                     }
                 } for product_id, quantity, price in positions],
         }
