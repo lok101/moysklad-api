@@ -1,7 +1,5 @@
-"""
-Клиент для работы с API МойСклад
-"""
 import os
+from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Mapping
@@ -29,7 +27,6 @@ from moy_sklad_api.utils import convert_to_project_timezone
 
 @dataclass
 class Filter:
-    """Класс для представления одного условия фильтрации"""
     field: str
     value: Any
 
@@ -40,25 +37,25 @@ class Filter:
     def format_value(value: Any) -> str:
         if isinstance(value, bool):
             return str(value).lower()
+
         elif isinstance(value, UUID):
             return str(value)
+
         elif isinstance(value, str):
             if value.startswith("http://") or value.startswith("https://"):
                 return quote(value, safe='/:')
+
             return quote(value, safe='')
+
+        elif isinstance(value, datetime):
+            moment = convert_to_project_timezone(value)
+            return moment.replace(tzinfo=None, microsecond=0).isoformat(sep=" ")
+
         else:
             return str(value)
 
 
 class MoySkladAPIClient:
-    """
-    Клиент для работы с API МойСклад (api.moysklad.ru)
-    
-    Args:
-        access_token: Токен доступа к API
-        session: Опциональная сессия aiohttp. Если не передана, будет создана новая.
-    """
-
     def __init__(self, access_token: str | None = None, session: aiohttp.ClientSession | None = None):
         self._base_url = "https://api.moysklad.ru/api/remap/1.2"
 
@@ -90,17 +87,7 @@ class MoySkladAPIClient:
             order: str | None = None,
             limit: int | None = None,
     ) -> WarehouseCollection:
-        """
-        Получить список складов с возможностью фильтрации
-        
-        Args:
-            filters: Словарь или список Filter/кортежей для фильтрации
-            order: Параметр сортировки (например, "name,asc")
-            limit: Лимит количества записей
-        
-        Returns:
-            WarehouseCollection: Коллекция складов
-        """
+
         query_string = self._build_query_string(filters=filters, order=order, limit=limit)
         url = f"{self._base_url}/entity/store{query_string}"
 
@@ -111,15 +98,7 @@ class MoySkladAPIClient:
         return WarehouseCollection.model_validate(response)
 
     async def get_warehouse_by_id(self, warehouse_id: str | UUID) -> WarehouseModel | None:
-        """
-        Получить склад по ID
-        
-        Args:
-            warehouse_id: ID склада
-            
-        Returns:
-            StoreModel или None, если склад не найден
-        """
+
         url = f"{self._base_url}/entity/store/{str(warehouse_id)}"
         response = await self._async_get(url)
 
@@ -132,55 +111,27 @@ class MoySkladAPIClient:
 
     @staticmethod
     def _build_query_string(
-            filters: dict[str, Any] | list[Filter | tuple[str, Any]] | None = None,
+            filters: list[Filter] | None = None,
             order: str | None = None,
             limit: int | None = None,
             expand: str | None = None,
             **kwargs: Any
     ) -> str:
-        """
-        Построить строку query параметров для API МойСклад
-
-        Args:
-            filters: Словарь или список Filter/кортежей для фильтрации.
-                    Словарь: {"поле": значение/список_значений}
-                    Список: [Filter(...), ...] или [("поле", значение), ...]
-                    Несколько значений одного поля объединяются через OR.
-                    Разные поля объединяются через AND.
-            order: Параметр сортировки (например, "moment,desc")
-            limit: Лимит количества записей
-            expand: Параметр расширения (например, "meta")
-            **kwargs: Дополнительные query параметры
-
-        Returns:
-            str: Строка query параметров вида "?filter=...&order=...&limit=..."
-        """
         query_parts = []
 
         if filters:
-            filter_parts = []
+            field_values: dict[str, list[Any]] = defaultdict(list)
+            for item in filters:
+                field_values[item.field].append(item.value)
 
-            if isinstance(filters, list):
-                for item in filters:
-                    if isinstance(item, Filter):
-                        filter_parts.append(item.to_string())
-                    elif isinstance(item, tuple):
-                        field, value = item
-                        if isinstance(value, (list, tuple)):
-                            for v in value:
-                                filter_parts.append(f"{field}={Filter.format_value(v)}")
-                        else:
-                            filter_parts.append(f"{field}={Filter.format_value(value)}")
-            elif isinstance(filters, dict):
-                for field, value in filters.items():
-                    if isinstance(value, (list, tuple)):
-                        for v in value:
-                            filter_parts.append(f"{field}={Filter.format_value(v)}")
-                    else:
-                        filter_parts.append(f"{field}={Filter.format_value(value)}")
+            filter_parts = []
+            for field, values in field_values.items():
+                formatted = ";".join(Filter.format_value(v) for v in values)
+                filter_parts.append(f"{field}={formatted}")
 
             if filter_parts:
-                query_parts.append(f"filter={';'.join(filter_parts)}")
+                filter_string = "&".join(filter_parts)
+                query_parts.append(f"filter={filter_string}")
 
         if order:
             query_parts.append(f"order={order}")
@@ -202,25 +153,10 @@ class MoySkladAPIClient:
 
     async def get_products(
             self, *,
-            filters: dict[str, Any] | list[Filter | tuple[str, Any]] | None = None,
+            filters: list[Filter] | None = None,
             order: str | None = None,
             limit: int | None = None,
     ) -> ProductsCollection:
-        """
-        Получить список товаров с возможностью фильтрации
-        
-        Args:
-            filters: Словарь или список Filter/кортежей для фильтрации.
-                    Словарь: {"поле": значение/список_значений}
-                    Список: [Filter(...), ...] или [("поле", значение), ...]
-                    Несколько значений одного поля объединяются через OR.
-                    Разные поля объединяются через AND.
-            order: Параметр сортировки (например, "name,asc")
-            limit: Лимит количества записей
-        
-        Returns:
-            ProductsCollection: Коллекция товаров
-        """
         query_string = self._build_query_string(filters=filters, order=order, limit=limit)
         url = f"{self._base_url}/entity/product{query_string}"
 
@@ -232,21 +168,10 @@ class MoySkladAPIClient:
 
     async def get_bundles(
             self, *,
-            filters: dict[str, Any] | list[Filter | tuple[str, Any]] | None = None,
+            filters: list[Filter] | None = None,
             order: str | None = None,
             limit: int | None = None,
     ) -> BundlesCollection:
-        """
-        Получить список комплектов с возможностью фильтрации
-        
-        Args:
-            filters: Словарь или список Filter/кортежей для фильтрации
-            order: Параметр сортировки (например, "name,asc")
-            limit: Лимит количества записей
-        
-        Returns:
-            BundlesCollection: Коллекция комплектов
-        """
         query_string = self._build_query_string(filters=filters, order=order, limit=limit)
         url = f"{self._base_url}/entity/bundle{query_string}"
 
@@ -258,23 +183,11 @@ class MoySkladAPIClient:
 
     async def get_demands(
             self, *,
-            filters: dict[str, Any] | list[Filter | tuple[str, Any]] | None = None,
+            filters: list[Filter] | None = None,
             order: str | None = None,
             limit: int | None = None,
     ) -> DemandsCollection:
-        """
-        Получить список отгрузок с возможностью фильтрации
-        
-        Args:
-            filters: Словарь или список Filter/кортежей для фильтрации.
-                    Для фильтрации по организации или складу используйте полные URL:
-                    {"organization": "https://api.moysklad.ru/api/remap/1.2/entity/organization/{id}"}
-            order: Параметр сортировки (например, "moment,desc")
-            limit: Лимит количества записей
-        
-        Returns:
-            Mapping с данными отгрузок
-        """
+
         query_string = self._build_query_string(filters=filters, order=order, limit=limit)
         url = f"{self._base_url}/entity/demand{query_string}"
 
@@ -295,21 +208,7 @@ class MoySkladAPIClient:
             sales_channel_id: UUID,
             product_type: ProductType
     ) -> DemandModel:
-        """
-        Создать документ отгрузки
-        
-        Args:
-            warehouse_id: ID склада
-            positions: Список позиций (product_id, quantity, price)
-            moment: Момент отгрузки (будет конвертирован в timezone проекта)
-            organization_id: ID организации
-            agent_id: ID контрагента
-            project_id: ID проекта
-            sales_channel_id: ID канала продаж
-            
-        Returns:
-            Mapping с данными созданного документа
-        """
+
         url = f"{self._base_url}/entity/demand"
 
         moment = convert_to_project_timezone(moment)
@@ -343,15 +242,7 @@ class MoySkladAPIClient:
         return DemandModel.model_validate(response)
 
     async def get_product_by_id(self, product_id: UUID | str) -> ProductModel:
-        """
-        Получить товар по ID
-        
-        Args:
-            product_id: ID товара
-            
-        Returns:
-            ProductModel: Модель товара
-        """
+
         url = f"{self._base_url}/entity/product/{str(product_id)}"
 
         response = await self._async_get(url)
@@ -362,6 +253,17 @@ class MoySkladAPIClient:
 
         return product_model
 
+    async def get_profit(self, filters: list[Filter] | None = None, ):
+        query_string = self._build_query_string(filters=filters)
+        url = f"{self._base_url}/report/profit/byproduct{query_string}"
+
+        response = await self._async_get(url)
+
+        if response is None:
+            raise Exception("Не удалось получить прибыльность из API")
+
+        return response
+
     async def create_move(
             self,
             target_store_id: UUID,
@@ -370,19 +272,7 @@ class MoySkladAPIClient:
             moment: datetime,
             organization_id: UUID,
     ) -> Mapping:
-        """
-        Создать документ перемещения
-        
-        Args:
-            target_store_id: ID склада назначения
-            positions: Список позиций (product_id, quantity)
-            source_store_id: ID склада источника
-            moment: Момент перемещения (будет конвертирован в timezone проекта)
-            organization_id: ID организации
-            
-        Returns:
-            Mapping с данными созданного документа
-        """
+
         url = f"{self._base_url}/entity/move"
 
         moment = convert_to_project_timezone(moment)
@@ -414,18 +304,8 @@ class MoySkladAPIClient:
 
     async def get_warehouse_stocks(
             self, *,
-            filters: dict[str, Any] | list[Filter | tuple[str, Any]] | None = None,
+            filters: list[Filter] | None = None,
     ) -> ProductStockSCollection:
-        """
-        Получить текущие остатки на складе с возможностью фильтрации
-        
-        Args:
-            filters: Словарь или список Filter/кортежей для фильтрации.
-                    Например: {"storeId": "uuid-склада"}
-        
-        Returns:
-            ProductStockSCollection: Коллекция остатков
-        """
         query_string = self._build_query_string(filters=filters)
         url = f"{self._base_url}/report/stock/bystore/current{query_string}"
 
@@ -444,23 +324,10 @@ class MoySkladAPIClient:
 
     async def get_warehouse_stocks_with_moment(
             self,
-            filters: dict[str, Any] | list[Filter | tuple[str, Any]] | None = None,
+            filters: list[Filter] | None = None,
             expand: str | None = "meta",
     ) -> ProductExpandStocksCollection:
-        """
-        Получить остатки на складе на определенный момент времени с возможностью фильтрации
-        
-        Args:
-            filters: Словарь или список Filter/кортежей для фильтрации.
-                    Для фильтрации по моменту времени используйте:
-                    {"moment": "2025-01-01T12:00:00"}
-                    Для фильтрации по складу используйте полный URL:
-                    {"store": "https://api.moysklad.ru/api/remap/1.2/entity/store/{id}"}
-            expand: Параметр расширения (по умолчанию "meta")
-        
-        Returns:
-            ProductExpandStocksCollection: Коллекция остатков
-        """
+
         query_string = self._build_query_string(filters=filters, expand=expand)
         url = f"{self._base_url}/report/stock/all{query_string}"
 
@@ -471,7 +338,6 @@ class MoySkladAPIClient:
         return ProductExpandStocksCollection.model_validate(response)
 
     async def _async_get(self, url: str):
-        """Асинхронный GET запрос"""
         try:
             async with self._session.get(url, headers=self._headers) as response:
                 response.raise_for_status()
@@ -481,7 +347,6 @@ class MoySkladAPIClient:
             raise Exception(f"Ошибка сети: {e}")
 
     async def _async_post(self, url: str, data: dict[str, Any]):
-        """Асинхронный POST запрос"""
         try:
             async with self._session.post(url, headers=self._headers, json=data) as response:
                 response_data = await response.json()
@@ -495,15 +360,12 @@ class MoySkladAPIClient:
             raise Exception(f"Ошибка при выполнении запроса: {e}")
 
     async def close(self):
-        """Закрыть сессию, если она была создана клиентом"""
         if self._own_session and self._session is not None:
             await self._session.close()
             self._session = None
 
     async def __aenter__(self):
-        """Поддержка async context manager"""
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        """Закрытие сессии при выходе из context manager"""
         await self.close()
