@@ -8,6 +8,7 @@ import enum
 class EntityType(enum.StrEnum):
     """Типы сущностей в МойСклад"""
     PROJECT = 'project'
+    PRODUCT = "product"
     STORE = 'store'
     ORGANIZATION = 'organization'
     AGENT = 'counterparty'

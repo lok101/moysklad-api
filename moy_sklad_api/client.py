@@ -45,7 +45,7 @@ class Filter:
             if value.startswith("http://") or value.startswith("https://"):
                 return quote(value, safe='/:')
 
-            return quote(value, safe='')
+            return value
 
         elif isinstance(value, datetime):
             moment = convert_to_project_timezone(value)
@@ -56,8 +56,10 @@ class Filter:
 
 
 class MoySkladAPIClient:
+    _BASE_URL = "https://api.moysklad.ru/api/remap/1.2"
+
     def __init__(self, access_token: str | None = None, session: aiohttp.ClientSession | None = None):
-        self._base_url = "https://api.moysklad.ru/api/remap/1.2"
+        self._base_url = self._BASE_URL
 
         access_token = access_token or os.getenv("MOY_SKLAD_ACCESS_TOKEN")
 
@@ -75,6 +77,52 @@ class MoySkladAPIClient:
         else:
             self._session = session
             self._own_session = False
+
+    @staticmethod
+    async def get_token(login: str, password: str) -> str:
+        """Получение нового токена доступа по логину и паролю.
+
+        При генерации нового токена все ранее сгенерированные токены пользователя
+        будут отозваны.
+
+        Args:
+            login: Логин пользователя МойСклад.
+            password: Пароль пользователя МойСклад.
+
+        Returns:
+            Токен доступа (access_token).
+
+        Raises:
+            MoySkladValidationError: Если логин или пароль не указаны.
+            Exception: При ошибке сети или неверных учётных данных.
+        """
+        if not login or not password:
+            raise MoySkladValidationError("Логин и пароль обязательны для получения токена.")
+
+        url = f"{MoySkladAPIClient._BASE_URL}/security/token"
+        auth = aiohttp.BasicAuth(login, password)
+
+        async with aiohttp.ClientSession() as session:
+            try:
+                async with session.post(
+                    url,
+                    auth=auth,
+                    headers={"Accept-Encoding": "gzip"},
+                ) as response:
+                    response_data = await response.json()
+
+                    if response.status >= 400:
+                        error_info = response_data if isinstance(response_data, dict) else {"error": str(response_data)}
+                        raise Exception(f"Ошибка получения токена (HTTP {response.status}): {error_info}")
+
+                    access_token = response_data.get("access_token")
+                    if not access_token:
+                        raise Exception(f"Токен не найден в ответе API: {response_data}")
+
+                    return access_token
+
+            except aiohttp.ClientError as e:
+                raise Exception(f"Ошибка сети при получении токена: {e}")
 
     async def _get_sales_channels(self) -> Mapping:
         url = f"{self._base_url}/entity/saleschannel"
