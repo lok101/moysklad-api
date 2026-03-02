@@ -206,7 +206,8 @@ class MoySkladAPIClient:
             limit: int | None = None,
     ) -> ProductsCollection:
         query_string = self._build_query_string(filters=filters, order=order, limit=limit)
-        url = f"{self._base_url}/entity/product{query_string}"
+        # url = f"{self._base_url}/entity/product{query_string}"
+        url = f"https://api.moysklad.ru/api/remap/1.2/entity/product?filter=pathName=Основной склад/СНЕК;Основной склад/СНЕК/Еда"
 
         response = await self._async_get(url)
         if response is None:
