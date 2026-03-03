@@ -17,6 +17,7 @@ from moy_sklad_api.models import (
     WarehouseCollection,
     WarehouseModel,
     BundlesCollection,
+    BundleModel,
     DemandsCollection
 )
 from moy_sklad_api.enums import EntityType, ProductType
@@ -105,9 +106,9 @@ class MoySkladAPIClient:
         async with aiohttp.ClientSession() as session:
             try:
                 async with session.post(
-                    url,
-                    auth=auth,
-                    headers={"Accept-Encoding": "gzip"},
+                        url,
+                        auth=auth,
+                        headers={"Accept-Encoding": "gzip"},
                 ) as response:
                     response_data = await response.json()
 
@@ -206,8 +207,7 @@ class MoySkladAPIClient:
             limit: int | None = None,
     ) -> ProductsCollection:
         query_string = self._build_query_string(filters=filters, order=order, limit=limit)
-        # url = f"{self._base_url}/entity/product{query_string}"
-        url = f"https://api.moysklad.ru/api/remap/1.2/entity/product?filter=pathName=Основной склад/СНЕК;Основной склад/СНЕК/Еда"
+        url = f"{self._base_url}/entity/product{query_string}"
 
         response = await self._async_get(url)
         if response is None:
@@ -222,13 +222,71 @@ class MoySkladAPIClient:
             limit: int | None = None,
     ) -> BundlesCollection:
         query_string = self._build_query_string(filters=filters, order=order, limit=limit)
-        url = f"{self._base_url}/entity/bundle{query_string}"
+        entity_per_request: int = 100
+        pagination_page = 0
 
-        response = await self._async_get(url)
-        if response is None:
-            raise Exception("Не удалось получить комплекты из API")
+        all_items: list[Mapping] = []
 
-        return BundlesCollection.model_validate(response)
+        while True:
+            url = (
+                f"{self._base_url}/entity/bundle{query_string}"
+                f"&expand=components"
+                f"&limit={entity_per_request}"
+                f"&offset={pagination_page * entity_per_request}"
+            )
+            response = await self._async_get(url)
+
+            if response is None:
+                raise Exception("Не удалось получить комплекты из API")
+
+            items: list[Mapping] = response["rows"]
+
+            if len(items) == 0:
+                break
+
+            all_items.extend(items)
+            pagination_page += 1
+
+        return BundlesCollection.model_validate({"rows": all_items})
+
+    async def create_bundle(
+            self,
+            name: str,
+            code: str,
+            components: list[tuple[UUID, float]],
+    ) -> BundleModel:
+        """Создать комплект с заданным списком компонентов.
+
+        Args:
+            name: Наименование комплекта.
+            code: Код комплекта.
+            components: Список компонентов в формате [(product_id, quantity), ...].
+
+        Returns:
+            BundleModel: Созданный комплект.
+
+        Raises:
+            Exception: При ошибке сети или ответе API с кодом >= 400.
+        """
+        url = f"{self._base_url}/entity/bundle"
+
+        data = {
+            "name": name,
+            "code": code,
+            "components": [
+                {
+                    "assortment": {
+                        "meta": generate_metadata(product_id, EntityType.PRODUCT)
+                    },
+                    "quantity": quantity,
+                }
+                for product_id, quantity in components
+            ],
+        }
+
+        response = await self._async_post(url, data)
+
+        return BundleModel.model_validate(response)
 
     async def get_demands(
             self, *,

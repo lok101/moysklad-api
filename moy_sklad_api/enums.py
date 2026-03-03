@@ -9,6 +9,7 @@ class EntityType(enum.StrEnum):
     """Типы сущностей в МойСклад"""
     PROJECT = 'project'
     PRODUCT = "product"
+    BUNDLE = 'bundle'
     STORE = 'store'
     ORGANIZATION = 'organization'
     AGENT = 'counterparty'
