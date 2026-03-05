@@ -254,20 +254,7 @@ class MoySkladAPIClient:
             name: str,
             code: str,
             components: list[tuple[UUID, float]],
-    ) -> BundleModel:
-        """Создать комплект с заданным списком компонентов.
-
-        Args:
-            name: Наименование комплекта.
-            code: Код комплекта.
-            components: Список компонентов в формате [(product_id, quantity), ...].
-
-        Returns:
-            BundleModel: Созданный комплект.
-
-        Raises:
-            Exception: При ошибке сети или ответе API с кодом >= 400.
-        """
+    ) -> UUID:
         url = f"{self._base_url}/entity/bundle"
 
         data = {
@@ -286,7 +273,16 @@ class MoySkladAPIClient:
 
         response = await self._async_post(url, data)
 
-        return BundleModel.model_validate(response)
+        return response["id"]
+
+    async def archive_bundle(self, bundle_id: UUID):
+        url = f"{self._base_url}/entity/bundle/{bundle_id}"
+        data = {
+            "archived": True,
+        }
+        response = await self._async_put(url, data)
+
+        return response["id"]
 
     async def get_demands(
             self, *,
@@ -476,3 +472,17 @@ class MoySkladAPIClient:
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self.close()
+
+    async def _async_put(self, url: str, data: dict[str, Any]):
+        try:
+            async with self._session.put(url, headers=self._headers, json=data) as response:
+                response_data = await response.json()
+                if response.status >= 400:
+                    error_info = response_data if isinstance(response_data, dict) else {"error": str(response_data)}
+                    raise Exception(f"Ошибка HTTP {response.status}: {error_info}")
+                return response_data
+        except Exception as e:
+            if "Ошибка HTTP" in str(e):
+                raise
+            raise Exception(f"Ошибка при выполнении запроса: {e}")
+
