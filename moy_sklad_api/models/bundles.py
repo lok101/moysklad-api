@@ -26,7 +26,7 @@ class BundleModel(BaseModel):
     id: UUID
     name: str
     code: int
-    components: Annotated[list[BundleComponentModel], BeforeValidator(_parse_bundel_componens)]
+    components: Annotated[list[BundleComponentModel], BeforeValidator(_parse_bundle_components)]
     type: str = Field(validation_alias="pathName")
 
 
