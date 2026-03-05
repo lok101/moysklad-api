@@ -3,10 +3,11 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, BeforeValidator
 
+from moy_sklad_api.exceptions import MoySkladAPIException
 from moy_sklad_api.models.base_collection import BaseCollection
 
 
-def _parse_bundel_componens(data: dict) -> list[BundleComponentModel]:
+def _parse_bundle_components(data: dict) -> list[BundleComponentModel]:
     components_data = data.get("rows")
 
     if components_data is None:
