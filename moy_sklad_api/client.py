@@ -254,6 +254,7 @@ class MoySkladAPIClient:
             name: str,
             code: str,
             components: list[tuple[UUID, float]],
+            path_name: str | None = None,
     ) -> UUID:
         url = f"{self._base_url}/entity/bundle"
 
@@ -270,6 +271,9 @@ class MoySkladAPIClient:
                 for product_id, quantity in components
             ],
         }
+
+        if path_name:
+            data["pathName"] = path_name
 
         response = await self._async_post(url, data)
 
