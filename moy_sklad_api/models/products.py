@@ -15,8 +15,8 @@ class ProductModel(BaseModel):
     id: UUID
     name: str
     code: int
-    capacity: int = Field(validation_alias="volume")
-    type: str = Field(validation_alias="pathName")
+    capacity: int | None = Field(validation_alias="volume", default=None)
+    type: str | None = Field(validation_alias="pathName", default=None)
 
 
 class ProductsCollection(BaseCollection[ProductModel]):

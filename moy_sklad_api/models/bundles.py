@@ -3,6 +3,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, BeforeValidator
 
+from moy_sklad_api.models.products import ProductModel
 from moy_sklad_api.exceptions import MoySkladAPIException
 from moy_sklad_api.models.base_collection import BaseCollection
 
@@ -19,6 +20,7 @@ def _parse_bundle_components(data: dict) -> list[BundleComponentModel]:
 class BundleComponentModel(BaseModel):
     id: UUID
     quantity: float
+    product: Annotated[ProductModel, Field(validation_alias="assortment")]
 
 
 class BundleModel(BaseModel):

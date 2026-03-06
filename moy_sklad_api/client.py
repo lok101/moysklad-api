@@ -230,7 +230,7 @@ class MoySkladAPIClient:
         while True:
             url = (
                 f"{self._base_url}/entity/bundle{query_string}"
-                f"&expand=components"
+                f"&expand=components.assortment"
                 f"&limit={entity_per_request}"
                 f"&offset={pagination_page * entity_per_request}"
             )
