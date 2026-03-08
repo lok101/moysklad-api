@@ -7,7 +7,6 @@ PROJECT_TIMEZONE = timezone(timedelta(hours=3))
 
 
 def get_project_timezone() -> timezone:
-    """Получить timezone проекта (UTC+3)"""
     return PROJECT_TIMEZONE
 
 
