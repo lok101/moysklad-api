@@ -1,12 +1,7 @@
-"""
-Общие константы и типы для MS API
-"""
-
 import enum
 
 
 class EntityType(enum.StrEnum):
-    """Типы сущностей в МойСклад"""
     PROJECT = 'project'
     PRODUCT = "product"
     BUNDLE = 'bundle'
@@ -17,6 +12,7 @@ class EntityType(enum.StrEnum):
     DEMAND = 'demand'
     SALES_CHANNEL = 'saleschannel'
     ATTRIBUTE = 'attributemetadata'
+    MODIFICATION = 'variant'
 
 
 class ProductType(enum.StrEnum):

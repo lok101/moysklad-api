@@ -1,59 +1,25 @@
+import json
 import os
 from collections import defaultdict
-from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Mapping
-from urllib.parse import quote
+from typing import Any, Literal, Mapping
 from uuid import UUID
 
 import aiohttp
 
-from moy_sklad_api.exceptions import MoySkladValidationError
+from moy_sklad_api.exceptions import MoySkladAPIException, MoySkladValidationError
+from moy_sklad_api.filter import Filter
 from moy_sklad_api.models import (
-    ProductStockSCollection,
-    ProductExpandStocksCollection,
-    ProductsCollection,
     ProductModel,
-    WarehouseCollection,
     WarehouseModel,
-    BundlesCollection,
-    BundleModel,
-    DemandsCollection
+    ProductStocksModel,
+    ProductExpandStocksModel
 )
 from moy_sklad_api.enums import EntityType, ProductType
-from moy_sklad_api.data_templates import generate_metadata
-from moy_sklad_api.models.demands import DemandModel
+from moy_sklad_api.models.metadata import MetaModel
+from moy_sklad_api.models.bundle import BundleModel
+from moy_sklad_api.models.demand import DemandModel
 from moy_sklad_api.utils import convert_to_project_timezone
-
-
-@dataclass
-class Filter:
-    field: str
-    value: Any
-
-    def to_string(self) -> str:
-        return f"{self.field}={self.format_value(self.value)}"
-
-    @staticmethod
-    def format_value(value: Any) -> str:
-        if isinstance(value, bool):
-            return str(value).lower()
-
-        elif isinstance(value, UUID):
-            return str(value)
-
-        elif isinstance(value, str):
-            if value.startswith("http://") or value.startswith("https://"):
-                return quote(value, safe='/:')
-
-            return value
-
-        elif isinstance(value, datetime):
-            moment = convert_to_project_timezone(value)
-            return moment.replace(tzinfo=None, microsecond=0).isoformat(sep=" ")
-
-        else:
-            return str(value)
 
 
 class MoySkladAPIClient:
@@ -75,28 +41,13 @@ class MoySkladAPIClient:
         if session is None:
             self._session = aiohttp.ClientSession()
             self._own_session = True
+
         else:
             self._session = session
             self._own_session = False
 
     @staticmethod
     async def get_token(login: str, password: str) -> str:
-        """Получение нового токена доступа по логину и паролю.
-
-        При генерации нового токена все ранее сгенерированные токены пользователя
-        будут отозваны.
-
-        Args:
-            login: Логин пользователя МойСклад.
-            password: Пароль пользователя МойСклад.
-
-        Returns:
-            Токен доступа (access_token).
-
-        Raises:
-            MoySkladValidationError: Если логин или пароль не указаны.
-            Exception: При ошибке сети или неверных учётных данных.
-        """
         if not login or not password:
             raise MoySkladValidationError("Логин и пароль обязательны для получения токена.")
 
@@ -125,44 +76,33 @@ class MoySkladAPIClient:
             except aiohttp.ClientError as e:
                 raise Exception(f"Ошибка сети при получении токена: {e}")
 
-    async def _get_sales_channels(self) -> Mapping:
-        url = f"{self._base_url}/entity/saleschannel"
-
-        return await self._async_get(url)
-
     async def get_warehouses(
             self, *,
-            filters: dict[str, Any] | list[Filter | tuple[str, Any]] | None = None,
+            filters: dict[str, Any] | list[Filter] | None = None,
             order: str | None = None,
             limit: int | None = None,
-    ) -> WarehouseCollection:
+    ) -> list[WarehouseModel]:
 
         query_string = self._build_query_string(filters=filters, order=order, limit=limit)
         url = f"{self._base_url}/entity/store{query_string}"
 
         response = await self._async_get(url)
-        if response is None:
-            raise Exception("Не удалось получить склады из API")
 
-        return WarehouseCollection.model_validate(response)
+        return [WarehouseModel.model_validate(item) for item in response["rows"]]
 
     async def get_warehouse_by_id(self, warehouse_id: str | UUID) -> WarehouseModel | None:
 
         url = f"{self._base_url}/entity/store/{str(warehouse_id)}"
         response = await self._async_get(url)
 
-        if response is None:
-            return None
-
-        store_model = WarehouseModel.model_validate(response)
-
-        return store_model
+        return WarehouseModel.model_validate(response)
 
     @staticmethod
     def _build_query_string(
             filters: list[Filter] | None = None,
             order: str | None = None,
             limit: int | None = None,
+            offset: int | None = None,
             expand: str | None = None,
             **kwargs: Any
     ) -> str:
@@ -188,6 +128,9 @@ class MoySkladAPIClient:
         if limit is not None:
             query_parts.append(f"limit={limit}")
 
+        if offset is not None:
+            query_parts.append(f"offset={offset}")
+
         if expand:
             query_parts.append(f"expand={expand}")
 
@@ -205,55 +148,53 @@ class MoySkladAPIClient:
             filters: list[Filter] | None = None,
             order: str | None = None,
             limit: int | None = None,
-    ) -> ProductsCollection:
+    ) -> list[ProductModel]:
+
         query_string = self._build_query_string(filters=filters, order=order, limit=limit)
         url = f"{self._base_url}/entity/product{query_string}"
 
         response = await self._async_get(url)
-        if response is None:
-            raise Exception("Не удалось получить продукты из API")
 
-        return ProductsCollection.model_validate(response)
+        return [ProductModel.model_validate(item) for item in response["rows"]]
 
     async def get_bundles(
             self, *,
             filters: list[Filter] | None = None,
             order: str | None = None,
-            limit: int | None = None,
-    ) -> BundlesCollection:
-        query_string = self._build_query_string(filters=filters, order=order, limit=limit)
+    ) -> list[BundleModel]:
+        all_items: list[Mapping] = []
+
         entity_per_request: int = 100
         pagination_page = 0
 
-        all_items: list[Mapping] = []
-
         while True:
-            url = (
-                f"{self._base_url}/entity/bundle{query_string}"
-                f"&expand=components.assortment"
-                f"&limit={entity_per_request}"
-                f"&offset={pagination_page * entity_per_request}"
+            query_string = self._build_query_string(
+                filters=filters,
+                order=order,
+                limit=entity_per_request,
+                offset=pagination_page * entity_per_request,
+                expand="components.assortment.product"
             )
+
+            url = f"{self._base_url}/entity/bundle{query_string}"
+
             response = await self._async_get(url)
 
-            if response is None:
-                raise Exception("Не удалось получить комплекты из API")
-
             items: list[Mapping] = response["rows"]
-
-            if len(items) == 0:
-                break
 
             all_items.extend(items)
             pagination_page += 1
 
-        return BundlesCollection.model_validate({"rows": all_items})
+            if len(items) < entity_per_request:
+                break
+
+        return [BundleModel.model_validate(item) for item in all_items]
 
     async def create_bundle(
             self,
             name: str,
             code: str,
-            components: list[tuple[UUID, float]],
+            components: list[tuple[UUID, float, EntityType]],
             path_name: str | None = None,
     ) -> UUID:
         url = f"{self._base_url}/entity/bundle"
@@ -264,11 +205,11 @@ class MoySkladAPIClient:
             "components": [
                 {
                     "assortment": {
-                        "meta": generate_metadata(product_id, EntityType.PRODUCT)
+                        "meta": MetaModel.for_entity(product_id, entity_type).to_api_dict()
                     },
                     "quantity": quantity,
                 }
-                for product_id, quantity in components
+                for product_id, quantity, entity_type in components
             ],
         }
 
@@ -284,6 +225,7 @@ class MoySkladAPIClient:
         data = {
             "archived": True,
         }
+
         response = await self._async_put(url, data)
 
         return response["id"]
@@ -293,16 +235,14 @@ class MoySkladAPIClient:
             filters: list[Filter] | None = None,
             order: str | None = None,
             limit: int | None = None,
-    ) -> DemandsCollection:
+    ) -> list[DemandModel]:
 
         query_string = self._build_query_string(filters=filters, order=order, limit=limit)
         url = f"{self._base_url}/entity/demand{query_string}"
 
         response = await self._async_get(url)
-        if response is None:
-            raise Exception("Не удалось получить отгрузки из API")
 
-        return DemandsCollection.model_validate(response)
+        return [DemandModel.model_validate(item) for item in response["rows"]]
 
     async def create_demand(
             self,
@@ -320,11 +260,12 @@ class MoySkladAPIClient:
 
         moment = convert_to_project_timezone(moment)
 
-        store_metadata = {"meta": generate_metadata(warehouse_id, EntityType.STORE)}
-        organization_metadata = {"meta": generate_metadata(organization_id, EntityType.ORGANIZATION)}
-        agent_metadata = {"meta": generate_metadata(agent_id, EntityType.AGENT)}
-        project_metadata = {"meta": generate_metadata(project_id, EntityType.PROJECT)}
-        sales_channel_metadata = {"meta": generate_metadata(sales_channel_id, EntityType.SALES_CHANNEL)}
+        store_metadata = {"meta": MetaModel.for_entity(warehouse_id, EntityType.STORE).to_api_dict()}
+        organization_metadata = {"meta": MetaModel.for_entity(organization_id, EntityType.ORGANIZATION).to_api_dict()}
+        agent_metadata = {"meta": MetaModel.for_entity(agent_id, EntityType.AGENT).to_api_dict()}
+        project_metadata = {"meta": MetaModel.for_entity(project_id, EntityType.PROJECT).to_api_dict()}
+        sales_channel_metadata = {
+            "meta": MetaModel.for_entity(sales_channel_id, EntityType.SALES_CHANNEL).to_api_dict()}
 
         data = {
             "moment": moment.replace(tzinfo=None, microsecond=0).isoformat(sep=" "),
@@ -333,13 +274,13 @@ class MoySkladAPIClient:
             "agent": agent_metadata,
             "project": project_metadata,
             "salesChannel": sales_channel_metadata,
-            "comment": "Создано автоматически.",
+            "description": "Создано автоматически.",
             "positions": [
                 {
                     "quantity": quantity,
                     "price": price,
                     "assortment": {
-                        "meta": generate_metadata(product_id, product_type)
+                        "meta": MetaModel.for_entity(product_id, product_type).to_api_dict()
                     }
                 } for product_id, quantity, price in positions],
         }
@@ -353,21 +294,14 @@ class MoySkladAPIClient:
         url = f"{self._base_url}/entity/product/{str(product_id)}"
 
         response = await self._async_get(url)
-        if response is None:
-            raise Exception(f"Не удалось получить продукт {product_id} из API")
 
-        product_model = ProductModel.model_validate(response)
-
-        return product_model
+        return ProductModel.model_validate(response)
 
     async def get_profit(self, filters: list[Filter] | None = None, ):
         query_string = self._build_query_string(filters=filters)
         url = f"{self._base_url}/report/profit/byproduct{query_string}"
 
         response = await self._async_get(url)
-
-        if response is None:
-            raise Exception("Не удалось получить прибыльность из API")
 
         return response
 
@@ -388,19 +322,19 @@ class MoySkladAPIClient:
             "moment": moment.replace(tzinfo=None, microsecond=0).isoformat(sep=" "),
             "comment": "Создано автоматически.",
             "organization": {
-                "meta": generate_metadata(organization_id, EntityType.ORGANIZATION)
+                "meta": MetaModel.for_entity(organization_id, EntityType.ORGANIZATION).to_api_dict()
             },
             "sourceStore": {
-                "meta": generate_metadata(source_store_id, EntityType.STORE)
+                "meta": MetaModel.for_entity(source_store_id, EntityType.STORE).to_api_dict()
             },
             "targetStore": {
-                "meta": generate_metadata(target_store_id, EntityType.STORE)
+                "meta": MetaModel.for_entity(target_store_id, EntityType.STORE).to_api_dict()
             },
             "positions": [
                 {
                     "quantity": quantity,
                     "assortment": {
-                        "meta": generate_metadata(product_id, EntityType.PRODUCT)
+                        "meta": MetaModel.for_entity(product_id, EntityType.PRODUCT).to_api_dict()
                     }
                 } for product_id, quantity in positions]
         }
@@ -409,62 +343,69 @@ class MoySkladAPIClient:
 
         return response
 
-    async def get_warehouse_stocks(
-            self, *,
-            filters: list[Filter] | None = None,
-    ) -> ProductStockSCollection:
+    async def get_warehouse_stocks(self, *, filters: list[Filter] | None = None) -> list[ProductStocksModel]:
         query_string = self._build_query_string(filters=filters)
         url = f"{self._base_url}/report/stock/bystore/current{query_string}"
 
         response = await self._async_get(url)
-        if response is None:
-            raise Exception("Не удалось получить остатки из API")
 
-        if isinstance(response, list):
-            response_data = {"rows": response}
-        elif isinstance(response, dict) and "rows" in response:
-            response_data = response
-        else:
-            response_data = {"rows": response}
-
-        return ProductStockSCollection.model_validate(response_data)
+        return [ProductStocksModel.model_validate(item) for item in response]
 
     async def get_warehouse_stocks_with_moment(
             self,
             filters: list[Filter] | None = None,
             expand: str | None = "meta",
-    ) -> ProductExpandStocksCollection:
+    ) -> list[ProductExpandStocksModel]:
 
         query_string = self._build_query_string(filters=filters, expand=expand)
         url = f"{self._base_url}/report/stock/all{query_string}"
 
         response = await self._async_get(url)
-        if response is None:
-            raise Exception("Не удалось получить остатки из API")
 
-        return ProductExpandStocksCollection.model_validate(response)
+        return [ProductExpandStocksModel.model_validate(item) for item in response["rows"]]
 
-    async def _async_get(self, url: str):
+    async def _async_request(
+            self,
+            method: Literal["GET", "POST", "PUT"],
+            url: str,
+            data: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+
         try:
-            async with self._session.get(url, headers=self._headers) as response:
-                response.raise_for_status()
-                return await response.json()
+            kwargs: dict[str, Any] = {"headers": self._headers}
+
+            if data is not None:
+                kwargs["json"] = data
+
+            async with self._session.request(method, url, **kwargs) as response:
+                response_data = await response.json()
+
+                if response.status >= 400:
+                    error_info = (
+                        response_data
+                        if isinstance(response_data, dict)
+                        else {"error": str(response_data)}
+                    )
+                    raise MoySkladAPIException(
+                        f"Ошибка HTTP {response.status}: {error_info}"
+                    )
+
+                return response_data
 
         except aiohttp.ClientError as e:
-            raise Exception(f"Ошибка сети: {e}")
+            raise MoySkladAPIException(f"Ошибка при выполнении запроса: {e}")
 
-    async def _async_post(self, url: str, data: dict[str, Any]):
-        try:
-            async with self._session.post(url, headers=self._headers, json=data) as response:
-                response_data = await response.json()
-                if response.status >= 400:
-                    error_info = response_data if isinstance(response_data, dict) else {"error": str(response_data)}
-                    raise Exception(f"Ошибка HTTP {response.status}: {error_info}")
-                return response_data
-        except Exception as e:
-            if "Ошибка HTTP" in str(e):
-                raise
-            raise Exception(f"Ошибка при выполнении запроса: {e}")
+        except json.JSONDecodeError as e:
+            raise MoySkladAPIException(f"API вернул невалидный JSON: {e}")
+
+    async def _async_get(self, url: str) -> dict[str, Any]:
+        return await self._async_request("GET", url)
+
+    async def _async_post(self, url: str, data: dict[str, Any]) -> dict[str, Any]:
+        return await self._async_request("POST", url, data)
+
+    async def _async_put(self, url: str, data: dict[str, Any]) -> dict[str, Any]:
+        return await self._async_request("PUT", url, data)
 
     async def close(self):
         if self._own_session and self._session is not None:
@@ -476,17 +417,3 @@ class MoySkladAPIClient:
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self.close()
-
-    async def _async_put(self, url: str, data: dict[str, Any]):
-        try:
-            async with self._session.put(url, headers=self._headers, json=data) as response:
-                response_data = await response.json()
-                if response.status >= 400:
-                    error_info = response_data if isinstance(response_data, dict) else {"error": str(response_data)}
-                    raise Exception(f"Ошибка HTTP {response.status}: {error_info}")
-                return response_data
-        except Exception as e:
-            if "Ошибка HTTP" in str(e):
-                raise
-            raise Exception(f"Ошибка при выполнении запроса: {e}")
-
