@@ -115,8 +115,10 @@ class MoySkladAPIClient:
 
             filter_parts = []
             for field, values in field_values.items():
-                formatted = ";".join(Filter.format_value(v) for v in values)
-                filter_parts.append(f"{field}={formatted}")
+                # formatted = f";{field}=".join(Filter.format_value(v) for v in values)
+                parts = [f"{field}={value}" for value in values]
+                filter_parts.append(";".join(parts))
+                pass
 
             if filter_parts:
                 filter_string = "&".join(filter_parts)
