@@ -52,7 +52,7 @@ def _parse_components(value: dict) -> list[BundleComponentModel]:
 class BundleModel(BaseModel):
     id: UUID
     name: str
-    code: str = ""
+    code: str | None = None
     components: Annotated[
         list[BundleComponentModel],
         BeforeValidator(_parse_components),

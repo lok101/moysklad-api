@@ -9,13 +9,14 @@ import aiohttp
 
 from moy_sklad_api.exceptions import MoySkladAPIException, MoySkladValidationError
 from moy_sklad_api.filter import Filter
+from moy_sklad_api.enums import EntityType, ProductType
 from moy_sklad_api.models import (
     ProductModel,
     WarehouseModel,
     ProductStocksModel,
-    ProductExpandStocksModel
+    ProductExpandStocksModel,
+    VariantModel
 )
-from moy_sklad_api.enums import EntityType, ProductType
 from moy_sklad_api.models.metadata import MetaModel
 from moy_sklad_api.models.bundle import BundleModel
 from moy_sklad_api.models.demand import DemandModel
@@ -158,6 +159,41 @@ class MoySkladAPIClient:
         response = await self._async_get(url)
 
         return [ProductModel.model_validate(item) for item in response["rows"]]
+
+    async def get_variants(
+            self, *,
+            filters: list[Filter] | None = None,
+            order: str | None = None,
+            limit: int | None = None,
+    ) -> list[VariantModel]:
+
+        all_items: list[Mapping] = []
+
+        entity_per_request: int = 100
+        pagination_page = 0
+
+        while True:
+            query_string = self._build_query_string(
+                filters=filters,
+                order=order,
+                limit=entity_per_request,
+                offset=pagination_page * entity_per_request,
+                expand="product"
+            )
+
+            url = f"{self._base_url}/entity/variant{query_string}"
+
+            response = await self._async_get(url)
+
+            items: list[Mapping] = response["rows"]
+
+            all_items.extend(items)
+            pagination_page += 1
+
+            if len(items) < entity_per_request:
+                break
+
+        return [VariantModel.model_validate(item) for item in all_items]
 
     async def get_bundles(
             self, *,

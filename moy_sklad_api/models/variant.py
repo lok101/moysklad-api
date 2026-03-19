@@ -9,7 +9,7 @@ from moy_sklad_api.models.metadata import MetaModel
 class VariantModel(BaseModel):
     id: UUID
     name: str
-    code: int | None = None
+    code: str | None = None
     external_code: str | None = Field(default=None, validation_alias="externalCode")
     archived: bool
     product: ProductModel
