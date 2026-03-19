@@ -10,7 +10,7 @@ from moy_sklad_api.utils import convert_to_project_timezone
 @dataclass(frozen=True, slots=True)
 class Filter:
     field: str
-    value: str | int | bool
+    value: str | int | bool | list[str | int | bool | UUID]
 
     def to_string(self) -> str:
         return f"{self.field}={self.format_value(self.value)}"

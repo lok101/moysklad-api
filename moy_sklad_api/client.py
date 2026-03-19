@@ -111,12 +111,16 @@ class MoySkladAPIClient:
 
         if filters:
             field_values: dict[str, list[Any]] = defaultdict(list)
+
             for item in filters:
-                field_values[item.field].append(item.value)
+                if isinstance(item.value, list):
+                    for v in item.value:
+                        field_values[item.field].append(v)
+                else:
+                    field_values[item.field].append(item.value)
 
             filter_parts = []
             for field, values in field_values.items():
-                # formatted = f";{field}=".join(Filter.format_value(v) for v in values)
                 parts = [f"{field}={value}" for value in values]
                 filter_parts.append(";".join(parts))
                 pass
