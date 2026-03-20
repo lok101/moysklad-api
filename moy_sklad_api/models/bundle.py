@@ -53,6 +53,7 @@ class BundleModel(BaseModel):
     id: UUID
     name: str
     code: str | None = None
+    volume: int
     components: Annotated[
         list[BundleComponentModel],
         BeforeValidator(_parse_components),
