@@ -3,9 +3,10 @@ from dotenv import load_dotenv
 from moy_sklad_api.client import MoySkladAPIClient
 from moy_sklad_api.filter import Filter
 from moy_sklad_api.models import (
-    BundleComponentModel,
+    PositionModel,
     BundleModel,
     DemandModel,
+    MoveModel,
     MetaModel,
     ProductExpandStocksModel,
     ProductModel,
@@ -20,9 +21,10 @@ load_dotenv()
 __all__ = [
     "Filter",
     "MoySkladAPIClient",
-    "BundleComponentModel",
+    "PositionModel",
     "BundleModel",
     "DemandModel",
+    "MoveModel",
     "MetaModel",
     "ProductExpandStocksModel",
     "ProductModel",
