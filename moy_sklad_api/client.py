@@ -409,7 +409,7 @@ class MoySkladAPIClient:
     async def create_move(
             self,
             target_store_id: UUID,
-            positions: list[tuple[UUID, int]],
+            positions: list[tuple[UUID, int | float, EntityType]],
             source_store_id: UUID,
             moment: datetime,
             organization_id: UUID,
@@ -435,9 +435,9 @@ class MoySkladAPIClient:
                 {
                     "quantity": quantity,
                     "assortment": {
-                        "meta": MetaModel.for_entity(product_id, EntityType.PRODUCT).to_api_dict()
+                        "meta": MetaModel.for_entity(product_id, entity_type).to_api_dict()
                     }
-                } for product_id, quantity in positions]
+                } for product_id, quantity, entity_type in positions]
         }
 
         response = await self._async_post(url, data)
