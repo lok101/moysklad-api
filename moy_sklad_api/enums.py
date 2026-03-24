@@ -18,3 +18,4 @@ class EntityType(enum.StrEnum):
 class ProductType(enum.StrEnum):
     SINGLE_PRODUCT = 'product'
     COMPOSITE_PRODUCT = 'bundle'
+    VARIANT_PRODUCT = 'variant'

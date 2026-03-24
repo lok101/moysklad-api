@@ -409,7 +409,7 @@ class MoySkladAPIClient:
     async def create_move(
             self,
             target_store_id: UUID,
-            positions: list[tuple[UUID, int | float, EntityType]],
+            positions: list[tuple[UUID, int | float, ProductType]],
             source_store_id: UUID,
             moment: datetime,
             organization_id: UUID,
