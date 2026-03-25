@@ -96,6 +96,13 @@ class MoySkladAPIClient:
         return [WarehouseModel.model_validate(item) for item in response["rows"]]
 
     @beartype
+    async def _get_projects(self) -> Mapping:
+
+        url = f"{self._base_url}/entity/project"
+
+        return await self._async_get(url)
+
+    @beartype
     async def get_warehouse_by_id(self, warehouse_id: str | UUID) -> WarehouseModel | None:
 
         url = f"{self._base_url}/entity/store/{str(warehouse_id)}"
@@ -413,6 +420,7 @@ class MoySkladAPIClient:
             source_store_id: UUID,
             moment: datetime,
             organization_id: UUID,
+            project_id: UUID,
     ) -> Mapping:
 
         url = f"{self._base_url}/entity/move"
@@ -424,6 +432,9 @@ class MoySkladAPIClient:
             "comment": "Создано автоматически.",
             "organization": {
                 "meta": MetaModel.for_entity(organization_id, EntityType.ORGANIZATION).to_api_dict()
+            },
+            "project": {
+                "meta": MetaModel.for_entity(project_id, EntityType.PROJECT).to_api_dict()
             },
             "sourceStore": {
                 "meta": MetaModel.for_entity(source_store_id, EntityType.STORE).to_api_dict()
