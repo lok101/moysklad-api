@@ -355,13 +355,12 @@ class MoySkladAPIClient:
     async def create_demand(
             self,
             warehouse_id: UUID,
-            positions: list[tuple[UUID, int, int]],
+            positions: list[tuple[UUID, int, int, ProductType]],
             moment: datetime,
             organization_id: UUID,
             agent_id: UUID,
             project_id: UUID,
             sales_channel_id: UUID,
-            product_type: ProductType
     ) -> DemandModel:
 
         url = f"{self._base_url}/entity/demand"
@@ -390,7 +389,7 @@ class MoySkladAPIClient:
                     "assortment": {
                         "meta": MetaModel.for_entity(product_id, product_type).to_api_dict()
                     }
-                } for product_id, quantity, price in positions],
+                } for product_id, quantity, price, product_type in positions],
         }
 
         response = await self._async_post(url, data)
