@@ -396,6 +396,35 @@ class MoySkladAPIClient:
 
         return DemandModel.model_validate(response)
 
+    @beartype
+    async def create_inventory(
+            self,
+            organization_id: UUID,
+            warehouse_id: UUID,
+            positions: list[tuple[UUID, float, ProductType]],
+    ) -> Mapping:
+        url = f"{self._base_url}/entity/inventory"
+
+        data = {
+            "organization": {
+                "meta": MetaModel.for_entity(organization_id, EntityType.ORGANIZATION).to_api_dict()
+            },
+            "store": {
+                "meta": MetaModel.for_entity(warehouse_id, EntityType.STORE).to_api_dict()
+            },
+            "positions": [
+                {
+                    "quantity": quantity,
+                    "assortment": {
+                        "meta": MetaModel.for_entity(product_id, product_type).to_api_dict()
+                    },
+                }
+                for product_id, quantity, product_type in positions
+            ],
+        }
+
+        return await self._async_post(url, data)
+
     async def get_product_by_id(self, product_id: UUID | str) -> ProductModel:
 
         url = f"{self._base_url}/entity/product/{str(product_id)}"
