@@ -425,6 +425,7 @@ class MoySkladAPIClient:
 
         data = {
             "moment": moment.replace(tzinfo=None, microsecond=0).isoformat(sep=" "),
+            "description": "Создано автоматически.",
             "organization": {
                 "meta": MetaModel.for_entity(organization_id, EntityType.ORGANIZATION).to_api_dict()
             },
@@ -481,7 +482,7 @@ class MoySkladAPIClient:
 
         data = {
             "moment": moment.replace(tzinfo=None, microsecond=0).isoformat(sep=" "),
-            "comment": "Создано автоматически.",
+            "description": "Создано автоматически.",
             "organization": {
                 "meta": MetaModel.for_entity(organization_id, EntityType.ORGANIZATION).to_api_dict()
             },
