@@ -1,5 +1,6 @@
 from moy_sklad_api.models.bundle import PositionModel, BundleModel
 from moy_sklad_api.models.demand import DemandModel
+from moy_sklad_api.models.inventory import InventoryPosition
 from moy_sklad_api.models.metadata import MetaModel
 from moy_sklad_api.models.move import MoveModel
 from moy_sklad_api.models.product import ProductModel
@@ -12,6 +13,7 @@ __all__ = [
     "PositionModel",
     "BundleModel",
     "DemandModel",
+    "InventoryPosition",
     "MoveModel",
     "MetaModel",
     "ProductExpandStocksModel",

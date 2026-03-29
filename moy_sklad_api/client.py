@@ -22,6 +22,7 @@ from moy_sklad_api.models import (
 from moy_sklad_api.models.metadata import MetaModel
 from moy_sklad_api.models.bundle import BundleModel
 from moy_sklad_api.models.demand import DemandModel
+from moy_sklad_api.models.inventory import InventoryPosition
 from moy_sklad_api.utils import convert_to_project_timezone
 
 
@@ -396,13 +397,26 @@ class MoySkladAPIClient:
 
         return DemandModel.model_validate(response)
 
+    # @staticmethod
+    # def _inventory_position_row(position: InventoryPosition) -> dict[str, object]:
+    #     row: dict[str, object] = {
+    #         "quantity": position.quantity,
+    #         "assortment": {
+    #             "meta": MetaModel.for_entity(
+    #                 position.product_id,
+    #                 position.product_type,
+    #             ).to_api_dict()
+    #         },
+    #     }
+    #     return row
+
     @beartype
     async def create_inventory(
             self,
             *,
             organization_id: UUID,
             warehouse_id: UUID,
-            positions: list[tuple[UUID, float, ProductType]],
+            positions: list[InventoryPosition],
             moment: datetime,
     ) -> Mapping:
         url = f"{self._base_url}/entity/inventory"
@@ -417,15 +431,20 @@ class MoySkladAPIClient:
             "store": {
                 "meta": MetaModel.for_entity(warehouse_id, EntityType.STORE).to_api_dict()
             },
-            "positions": [
-                {
-                    "quantity": quantity,
-                    "assortment": {
-                        "meta": MetaModel.for_entity(product_id, product_type).to_api_dict()
-                    },
-                }
-                for product_id, quantity, product_type in positions
-            ],
+            "positions": {
+                "rows": [
+                    {
+                        "quantity": position.quantity,
+                        "assortment": {
+                            "meta": MetaModel.for_entity(
+                                position.product_id,
+                                position.product_type,
+                            ).to_api_dict()
+                        },
+                    }
+                    for position in positions
+                ],
+            },
         }
 
         return await self._async_post(url, data)
