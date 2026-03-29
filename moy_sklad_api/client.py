@@ -399,7 +399,7 @@ class MoySkladAPIClient:
     @beartype
     async def create_inventory(
             self,
-            *
+            *,
             organization_id: UUID,
             warehouse_id: UUID,
             positions: list[tuple[UUID, float, ProductType]],
