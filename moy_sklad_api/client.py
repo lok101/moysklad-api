@@ -450,6 +450,11 @@ class MoySkladAPIClient:
 
         return await self._async_post(url, data)
 
+    @beartype
+    async def recalculate_inventory_quantity(self, inventory_id: str | UUID) -> dict[str, Any]:
+        url = f"{self._base_url}/rpc/inventory/{str(inventory_id)}/recalcCalculatedQuantity"
+        return await self._async_request("PUT", url)
+
     async def get_product_by_id(self, product_id: UUID | str) -> ProductModel:
 
         url = f"{self._base_url}/entity/product/{str(product_id)}"
@@ -534,10 +539,13 @@ class MoySkladAPIClient:
             method: Literal["GET", "POST", "PUT"],
             url: str,
             data: dict[str, Any] | None = None,
+            *,
+            extra_headers: Mapping[str, str] | None = None,
     ) -> dict[str, Any]:
 
         try:
-            kwargs: dict[str, Any] = {"headers": self._headers}
+            headers = {**self._headers, **dict(extra_headers or {})}
+            kwargs: dict[str, Any] = {"headers": headers}
 
             if data is not None:
                 kwargs["json"] = data
