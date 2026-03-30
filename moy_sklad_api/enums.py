@@ -10,6 +10,7 @@ class EntityType(enum.StrEnum):
     AGENT = 'counterparty'
     MOVE = 'move'
     DEMAND = 'demand'
+    INVENTORY = 'inventory'
     SALES_CHANNEL = 'saleschannel'
     ATTRIBUTE = 'attributemetadata'
     MODIFICATION = 'variant'

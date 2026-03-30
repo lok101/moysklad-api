@@ -541,7 +541,7 @@ class MoySkladAPIClient:
             data: dict[str, Any] | None = None,
             *,
             extra_headers: Mapping[str, str] | None = None,
-    ) -> dict[str, Any]:
+    ) -> Any:
 
         try:
             headers = {**self._headers, **dict(extra_headers or {})}
@@ -551,33 +551,43 @@ class MoySkladAPIClient:
                 kwargs["json"] = data
 
             async with self._session.request(method, url, **kwargs) as response:
-                response_data = await response.json()
+                raw_body = await response.read()
 
                 if response.status >= 400:
-                    error_info = (
-                        response_data
-                        if isinstance(response_data, dict)
-                        else {"error": str(response_data)}
-                    )
+                    if raw_body.strip():
+                        try:
+                            err_raw = json.loads(raw_body.decode())
+                            err_payload = (
+                                err_raw
+                                if isinstance(err_raw, dict)
+                                else {"error": err_raw}
+                            )
+                        except json.JSONDecodeError:
+                            err_payload = {"error": raw_body.decode(errors="replace")}
+                    else:
+                        err_payload = {"error": f"HTTP {response.status}"}
                     raise MoySkladAPIException(
-                        f"Ошибка HTTP {response.status}: {error_info}"
+                        f"Ошибка HTTP {response.status}: {err_payload}"
                     )
 
-                return response_data
+                if not raw_body.strip():
+                    return {}
+
+                try:
+                    return json.loads(raw_body.decode())
+                except json.JSONDecodeError as e:
+                    raise MoySkladAPIException(f"API вернул невалидный JSON: {e}")
 
         except aiohttp.ClientError as e:
             raise MoySkladAPIException(f"Ошибка при выполнении запроса: {e}")
 
-        except json.JSONDecodeError as e:
-            raise MoySkladAPIException(f"API вернул невалидный JSON: {e}")
-
-    async def _async_get(self, url: str) -> dict[str, Any]:
+    async def _async_get(self, url: str) -> Any:
         return await self._async_request("GET", url)
 
-    async def _async_post(self, url: str, data: dict[str, Any]) -> dict[str, Any]:
+    async def _async_post(self, url: str, data: dict[str, Any]) -> Any:
         return await self._async_request("POST", url, data)
 
-    async def _async_put(self, url: str, data: dict[str, Any]) -> dict[str, Any]:
+    async def _async_put(self, url: str, data: dict[str, Any]) -> Any:
         return await self._async_request("PUT", url, data)
 
     async def close(self):
