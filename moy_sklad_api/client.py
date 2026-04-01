@@ -22,7 +22,7 @@ from moy_sklad_api.models import (
 from moy_sklad_api.models.metadata import MetaModel
 from moy_sklad_api.models.bundle import BundleModel
 from moy_sklad_api.models.demand import DemandModel
-from moy_sklad_api.models.inventory import InventoryPosition
+from moy_sklad_api.models.inventory import InventoryModel, InventoryPosition
 from moy_sklad_api.utils import convert_to_project_timezone
 
 
@@ -352,6 +352,53 @@ class MoySkladAPIClient:
             offset += page_size
 
         return [MoveModel.model_validate(item) for item in all_items]
+
+    @beartype
+    async def get_inventories(
+            self,
+            *,
+            from_date: datetime,
+            to_date: datetime,
+            order: str | None = None,
+    ) -> list[InventoryModel]:
+
+        from_date = convert_to_project_timezone(from_date)
+        to_date = convert_to_project_timezone(to_date)
+
+        from_dt = from_date.replace(tzinfo=None, microsecond=0)
+        to_dt = to_date.replace(tzinfo=None, microsecond=0)
+
+        filter_expr = (
+            f"moment>={from_dt.isoformat(sep=' ')};moment<={to_dt.isoformat(sep=' ')};"
+        )
+
+        page_size = 10
+        offset = 0
+        all_items: list[Mapping] = []
+
+        while offset == 0:
+            query_parts: list[str] = [f"filter={filter_expr}"]
+
+            if order:
+                query_parts.append(f"order={order}")
+
+            query_parts.append(f"limit={page_size}")
+            query_parts.append(f"offset={offset}")
+            query_parts.append(f"expand=positions.assortment.product")
+
+            query_string = f"?{'&'.join(query_parts)}"
+            url = f"{self._base_url}/entity/inventory{query_string}"
+            response = await self._async_get(url)
+
+            rows: list[Mapping] = response.get("rows", [])
+            all_items.extend(rows)
+
+            if len(rows) < page_size:
+                break
+
+            offset += page_size
+
+        return [InventoryModel.model_validate(item) for item in all_items]
 
     async def create_demand(
             self,

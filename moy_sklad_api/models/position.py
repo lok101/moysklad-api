@@ -1,13 +1,14 @@
-from typing import Any, Annotated
+from typing import Any, Annotated, Callable
 from uuid import UUID
 
 from pydantic import BaseModel, Field, BeforeValidator
 
 from moy_sklad_api.models.variant import VariantModel
 from moy_sklad_api.models.product import ProductModel
+from moy_sklad_api.utils import parse_rows_as
 
 
-def _parse_assortment(data: dict[str, Any]) -> ProductModel | VariantModel:
+def parse_assortment(data: dict[str, Any]) -> ProductModel | VariantModel:
     meta = data.get("meta") or {}
     entity_type = meta.get("type", "") if isinstance(meta, dict) else ""
 
@@ -27,21 +28,10 @@ class PositionModel(BaseModel):
     assortment: Annotated[
         ProductModel | VariantModel,
         Field(validation_alias="assortment"),
-        BeforeValidator(_parse_assortment),
+        BeforeValidator(parse_assortment),
     ]
 
     model_config = {"populate_by_name": True}
 
 
-def parse_positions(value: dict) -> list[PositionModel]:
-    if value is None:
-        return []
-
-    if isinstance(value, dict):
-        rows = value.get("rows", [])
-
-        if isinstance(rows, list):
-            positions = [PositionModel.model_validate(item) for item in rows]
-            return positions
-
-    return []
+parse_positions: Callable[[Any], list[PositionModel]] = parse_rows_as(PositionModel)

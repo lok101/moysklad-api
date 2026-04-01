@@ -1,13 +1,42 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from datetime import datetime
+from typing import Annotated, Any, Callable
 from uuid import UUID
 
-from moy_sklad_api.enums import ProductType
+from pydantic import BaseModel, Field, BeforeValidator
+
+from moy_sklad_api.models.position import parse_assortment
+from moy_sklad_api.models.variant import VariantModel
+from moy_sklad_api.models.product import ProductModel
+from moy_sklad_api.utils import parse_api_datetime, parse_rows_as, _parse_meta_entity_id
 
 
-@dataclass(frozen=True, slots=True)
-class InventoryPosition:
-    product_id: UUID
+class InventoryPosition(BaseModel):
+    assortment: Annotated[
+        ProductModel | VariantModel,
+        Field(validation_alias="assortment"),
+        BeforeValidator(parse_assortment),
+    ]
+
     quantity: float
-    product_type: ProductType
+
+
+parse_inventory_positions: Callable[[Any], list[InventoryPosition]] = parse_rows_as(InventoryPosition)
+
+
+class InventoryModel(BaseModel):
+    model_config = {"populate_by_name": True, "extra": "ignore"}
+
+    id: UUID
+    name: str
+    external_code: Annotated[str, Field(validation_alias="externalCode")]
+    total_sum: Annotated[int, Field(validation_alias="sum")]
+    timestamp: Annotated[datetime, Field(validation_alias="moment"), BeforeValidator(parse_api_datetime)]
+    positions: Annotated[list[InventoryPosition], BeforeValidator(parse_inventory_positions)]
+
+    warehouse_id: Annotated[
+        UUID,
+        Field(validation_alias="store"),
+        BeforeValidator(_parse_meta_entity_id),
+    ]

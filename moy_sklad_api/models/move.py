@@ -20,39 +20,6 @@ def _parse_store_id(value: Any) -> str:
     return extract_id(meta)
 
 
-# def _parse_positions(value: Any) -> dict[str, int | float]:
-#     if value is None:
-#         return {}
-#
-#     if isinstance(value, dict):
-#         value = value.get("rows", [])
-#
-#     if not isinstance(value, list):
-#         raise TypeError("positions must be a list (or object with 'rows')")
-#
-#     result: dict[str, int | float] = {}
-#
-#     for item in value:
-#         if not isinstance(item, dict):
-#             continue
-#
-#         quantity = item.get("quantity")
-#
-#         if quantity is None:
-#             continue
-#
-#         assortment = item.get("assortment") or {}
-#         meta = assortment.get("meta") if isinstance(assortment, dict) else None
-#
-#         if not isinstance(meta, dict):
-#             continue
-#
-#         product_id = extract_id(meta)
-#         result[product_id] = quantity
-#
-#     return result
-#
-
 class MoveModel(BaseModel):
     model_config = {"populate_by_name": True, "extra": "ignore"}
 
