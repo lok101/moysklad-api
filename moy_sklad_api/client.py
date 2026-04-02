@@ -372,11 +372,11 @@ class MoySkladAPIClient:
             f"moment>={from_dt.isoformat(sep=' ')};moment<={to_dt.isoformat(sep=' ')};"
         )
 
-        page_size = 10
+        page_size = 100
         offset = 0
         all_items: list[Mapping] = []
 
-        while offset == 0:
+        while True:
             query_parts: list[str] = [f"filter={filter_expr}"]
 
             if order:

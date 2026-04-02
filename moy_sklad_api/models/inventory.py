@@ -20,6 +20,10 @@ class InventoryPosition(BaseModel):
     ]
 
     quantity: float
+    calculated_quantity: Annotated[float, Field(validation_alias="calculatedQuantity")]
+    correction_amount: Annotated[float, Field(validation_alias="correctionAmount")]
+    price: int
+    correction_sum: Annotated[float, Field(validation_alias="correctionSum")]
 
 
 parse_inventory_positions: Callable[[Any], list[InventoryPosition]] = parse_rows_as(InventoryPosition)
