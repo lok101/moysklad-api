@@ -7,6 +7,7 @@ from uuid import UUID
 
 import aiohttp
 from beartype import beartype
+from moy_sklad_api.dtos.inventory_position import InventoryPositionDTO
 
 from moy_sklad_api.exceptions import MoySkladAPIException, MoySkladValidationError
 from moy_sklad_api.filter import Filter
@@ -22,7 +23,7 @@ from moy_sklad_api.models import (
 from moy_sklad_api.models.metadata import MetaModel
 from moy_sklad_api.models.bundle import BundleModel
 from moy_sklad_api.models.demand import DemandModel
-from moy_sklad_api.models.inventory import InventoryModel, InventoryPosition
+from moy_sklad_api.models.inventory import InventoryModel
 from moy_sklad_api.utils import convert_to_project_timezone
 
 
@@ -463,7 +464,7 @@ class MoySkladAPIClient:
             *,
             organization_id: UUID,
             warehouse_id: UUID,
-            positions: list[InventoryPosition],
+            positions: list[InventoryPositionDTO],
             moment: datetime,
     ) -> Mapping:
         url = f"{self._base_url}/entity/inventory"
