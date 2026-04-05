@@ -631,6 +631,7 @@ class MoySkladAPIClient:
             template["moment"] = document_moment.replace(tzinfo=None, microsecond=0).isoformat(sep=" ")
 
         template["project"] = {"meta": MetaModel.for_entity(project_id, EntityType.PROJECT).to_api_dict()}
+        template["description"] = "Создано автоматически."
 
         url = f"{self._base_url}/entity/loss"
 
@@ -670,6 +671,7 @@ class MoySkladAPIClient:
             template["moment"] = document_moment.replace(tzinfo=None, microsecond=0).isoformat(sep=" ")
 
         template["project"] = {"meta": MetaModel.for_entity(project_id, EntityType.PROJECT).to_api_dict()}
+        template["description"] = "Создано автоматически."
 
         url = f"{self._base_url}/entity/enter"
 
