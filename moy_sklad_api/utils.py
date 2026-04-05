@@ -16,6 +16,7 @@ from moy_sklad_api.exceptions import MoySkladValidationError, MoySkladConnection
 PROJECT_TIMEZONE = timezone(timedelta(hours=3))
 
 T = TypeVar("T", bound=BaseModel)
+ClsT = TypeVar("ClsT", bound=type)
 
 logger = logging.getLogger(__name__)
 
@@ -81,7 +82,7 @@ def parse_rows_as(model: type[T]) -> Callable[[Any], list[T]]:
     return _parse
 
 
-def tries(times: int = 5, timeout: int = 10) -> Callable[[type], type]:
+def tries(times: int, timeout: int) -> Callable[[ClsT], ClsT]:
     """Повтор запросов при сетевых сбоях для всех вызовов HTTP через класс клиента."""
 
     def _retry_async_method(func: Callable[..., Any]) -> Callable[..., Any]:

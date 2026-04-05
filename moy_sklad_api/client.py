@@ -10,9 +10,14 @@ from beartype import beartype
 from dotenv import load_dotenv
 from moy_sklad_api.dtos.inventory_position import InventoryPositionDTO
 
-from moy_sklad_api.exceptions import MoySkladAPIException, MoySkladValidationError, MoySkladConnectionError
+from moy_sklad_api.exceptions import (
+    MoySkladAPIException,
+    MoySkladConnectionError,
+    MoySkladRequestError,
+    MoySkladValidationError,
+)
 from moy_sklad_api.filter import Filter
-from moy_sklad_api.enums import EntityType, ProductType
+from moy_sklad_api.enums import EntityType, ProductType, ErrorCode
 from moy_sklad_api.models import (
     MoveModel,
     ProductModel,
@@ -28,6 +33,12 @@ from moy_sklad_api.models.inventory import InventoryModel
 from moy_sklad_api.utils import convert_to_project_timezone, tries, get_required_env
 
 load_dotenv()
+
+
+def _is_moysklad_errors_body(payload: dict[str, Any]) -> bool:
+    errors = payload.get("errors")
+    return isinstance(errors, list)
+
 
 request_attempts = int(get_required_env("MOY_SKLAD_REQUEST_ATTEMPTS"))
 attempt_timeout = int(get_required_env("MOY_SKLAD_ATTEMPT_TIMEOUT"))
@@ -593,16 +604,27 @@ class MoySkladAPIClient:
             project_id: UUID,
             document_moment: datetime | None = None
     ):
-        async def get_loss_template() -> dict[str, Any]:
+        async def get_loss_template() -> dict[str, Any] | None:
             data = {
                 "inventory": {
                     "meta": MetaModel.for_entity(inventory_id, EntityType.INVENTORY).to_api_dict()
                 }
             }
 
-            return await self._async_put(f"{self._base_url}/entity/loss/new", data)
+            try:
+                return await self._async_put(f"{self._base_url}/entity/loss/new", data)
 
-        template = await get_loss_template()
+            except MoySkladRequestError as ex:
+                if ex.code == ErrorCode.LOSS_NOT_REQUIRE.value:
+                    return None
+
+                else:
+                    raise MoySkladAPIException from ex
+
+        template: dict[str, Any] | None = await get_loss_template()
+
+        if template is None:
+            return None
 
         if document_moment is not None:
             document_moment = convert_to_project_timezone(document_moment)
@@ -621,16 +643,27 @@ class MoySkladAPIClient:
             project_id: UUID,
             document_moment: datetime | None = None
     ):
-        async def get_enter_template() -> dict[str, Any]:
+        async def get_enter_template() -> dict[str, Any] | None:
             data = {
                 "inventory": {
                     "meta": MetaModel.for_entity(inventory_id, EntityType.INVENTORY).to_api_dict()
                 }
             }
 
-            return await self._async_put(f"{self._base_url}/entity/enter/new", data)
+            try:
+                return await self._async_put(f"{self._base_url}/entity/enter/new", data)
 
-        template = await get_enter_template()
+            except MoySkladRequestError as ex:
+                if ex.code == ErrorCode.ENTER_NOT_REQUIRE:
+                    return None
+
+                else:
+                    raise MoySkladAPIException from ex
+
+        template: dict[str, Any] | None = await get_enter_template()
+
+        if template is None:
+            return None
 
         if document_moment is not None:
             document_moment = convert_to_project_timezone(document_moment)
@@ -674,6 +707,8 @@ class MoySkladAPIClient:
                             err_payload = {"error": raw_body.decode(errors="replace")}
                     else:
                         err_payload = {"error": f"HTTP {response.status}"}
+                    if _is_moysklad_errors_body(err_payload):
+                        raise MoySkladRequestError(response.status, err_payload)
                     raise MoySkladAPIException(
                         f"Ошибка HTTP {response.status}: {err_payload}"
                     )

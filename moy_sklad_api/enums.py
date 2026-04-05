@@ -20,3 +20,7 @@ class ProductType(enum.StrEnum):
     SINGLE_PRODUCT = 'product'
     COMPOSITE_PRODUCT = 'bundle'
     VARIANT_PRODUCT = 'variant'
+
+class ErrorCode(enum.IntEnum):
+    ENTER_NOT_REQUIRE = 24002
+    LOSS_NOT_REQUIRE = 24001
