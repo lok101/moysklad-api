@@ -581,6 +581,57 @@ class MoySkladAPIClient:
 
         return [ProductExpandStocksModel.model_validate(item) for item in response["rows"]]
 
+    # async def get_loss_template(self, inventory_id: UUID):
+    #     data = {
+    #         "inventory": {
+    #             "meta": MetaModel.for_entity(inventory_id, EntityType.INVENTORY).to_api_dict()
+    #         }
+    #     }
+    #
+    #     url = f"{self._base_url}/entity/loss/new"
+    #
+    #     return await self._async_put(url, data)
+
+    async def create_loss_from_inventory(self, inventory_id: UUID, document_moment: datetime | None = None):
+        async def get_loss_template() -> dict[str, Any]:
+            data = {
+                "inventory": {
+                    "meta": MetaModel.for_entity(inventory_id, EntityType.INVENTORY).to_api_dict()
+                }
+            }
+
+            return await self._async_put(f"{self._base_url}/entity/loss/new", data)
+
+        template = await get_loss_template()
+
+        if document_moment is not None:
+            document_moment = convert_to_project_timezone(document_moment)
+            template["moment"] = document_moment.replace(tzinfo=None, microsecond=0).isoformat(sep=" ")
+
+        url = f"{self._base_url}/entity/loss"
+
+        return await self._async_post(url, template)
+
+    async def create_enter_from_inventory(self, inventory_id: UUID, document_moment: datetime | None = None):
+        async def get_enter_template() -> dict[str, Any]:
+            data = {
+                "inventory": {
+                    "meta": MetaModel.for_entity(inventory_id, EntityType.INVENTORY).to_api_dict()
+                }
+            }
+
+            return await self._async_put(f"{self._base_url}/entity/enter/new", data)
+
+        template = await get_enter_template()
+
+        if document_moment is not None:
+            document_moment = convert_to_project_timezone(document_moment)
+            template["moment"] = document_moment.replace(tzinfo=None, microsecond=0).isoformat(sep=" ")
+
+        url = f"{self._base_url}/entity/enter"
+
+        return await self._async_post(url, template)
+
     async def _async_request(
             self,
             method: Literal["GET", "POST", "PUT"],
