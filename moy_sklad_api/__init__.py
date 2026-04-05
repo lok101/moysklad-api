@@ -17,6 +17,7 @@ from moy_sklad_api.models import (
     WarehouseModel,
 )
 from moy_sklad_api.enums import EntityType, ProductType
+from .dtos import *
 
 load_dotenv()
 
@@ -37,4 +38,5 @@ __all__ = [
     "WarehouseModel",
     "EntityType",
     "ProductType",
+    "InventoryPositionDTO",
 ]
