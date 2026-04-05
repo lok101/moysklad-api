@@ -1,6 +1,8 @@
 import enum
 
 
+CREATED_AUTOMATICALLY = "Создано автоматически."
+
 class EntityType(enum.StrEnum):
     PROJECT = 'project'
     PRODUCT = "product"

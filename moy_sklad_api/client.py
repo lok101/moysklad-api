@@ -17,7 +17,7 @@ from moy_sklad_api.exceptions import (
     MoySkladValidationError,
 )
 from moy_sklad_api.filter import Filter
-from moy_sklad_api.enums import EntityType, ProductType, ErrorCode
+from moy_sklad_api.enums import EntityType, ProductType, ErrorCode, CREATED_AUTOMATICALLY
 from moy_sklad_api.models import (
     MoveModel,
     ProductModel,
@@ -445,7 +445,7 @@ class MoySkladAPIClient:
             "agent": agent_metadata,
             "project": project_metadata,
             "salesChannel": sales_channel_metadata,
-            "description": "Создано автоматически.",
+            "description": CREATED_AUTOMATICALLY,
             "positions": [
                 {
                     "quantity": quantity,
@@ -488,7 +488,7 @@ class MoySkladAPIClient:
 
         data = {
             "moment": moment.replace(tzinfo=None, microsecond=0).isoformat(sep=" "),
-            "description": "Создано автоматически.",
+            "description": CREATED_AUTOMATICALLY,
             "organization": {
                 "meta": MetaModel.for_entity(organization_id, EntityType.ORGANIZATION).to_api_dict()
             },
@@ -550,7 +550,7 @@ class MoySkladAPIClient:
 
         data = {
             "moment": moment.replace(tzinfo=None, microsecond=0).isoformat(sep=" "),
-            "description": "Создано автоматически.",
+            "description": CREATED_AUTOMATICALLY,
             "organization": {
                 "meta": MetaModel.for_entity(organization_id, EntityType.ORGANIZATION).to_api_dict()
             },
@@ -597,6 +597,30 @@ class MoySkladAPIClient:
 
         return [ProductExpandStocksModel.model_validate(item) for item in response["rows"]]
 
+    async def get_losses(self, from_date: datetime, to_date: datetime | None, project_id: UUID | None):
+
+        from_date = convert_to_project_timezone(from_date)
+        to_date = convert_to_project_timezone(to_date)
+
+        from_dt = from_date.replace(tzinfo=None, microsecond=0)
+        to_dt = to_date.replace(tzinfo=None, microsecond=0)
+
+        query_parts = [
+            f"filter=moment>={from_dt.isoformat(sep=' ')}"
+        ]
+
+        if to_date is not None:
+            query_parts.append(f"moment<={to_dt.isoformat(sep=' ')}")
+
+        if project_id is not None:
+            query_parts.append(f"project={MetaModel.for_entity(project_id, EntityType.PROJECT).to_api_dict()}")
+
+        query_string = f"?{'&'.join(query_parts)}"
+
+        url = f"{self._base_url}/entity/loss{query_string}"
+
+        return await self._async_get(url)
+
     async def create_loss_from_inventory(
             self,
             *,
@@ -631,7 +655,7 @@ class MoySkladAPIClient:
             template["moment"] = document_moment.replace(tzinfo=None, microsecond=0).isoformat(sep=" ")
 
         template["project"] = {"meta": MetaModel.for_entity(project_id, EntityType.PROJECT).to_api_dict()}
-        template["description"] = "Создано автоматически."
+        template["description"] = CREATED_AUTOMATICALLY
 
         url = f"{self._base_url}/entity/loss"
 
@@ -671,7 +695,7 @@ class MoySkladAPIClient:
             template["moment"] = document_moment.replace(tzinfo=None, microsecond=0).isoformat(sep=" ")
 
         template["project"] = {"meta": MetaModel.for_entity(project_id, EntityType.PROJECT).to_api_dict()}
-        template["description"] = "Создано автоматически."
+        template["description"] = CREATED_AUTOMATICALLY
 
         url = f"{self._base_url}/entity/enter"
 
