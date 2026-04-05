@@ -7,9 +7,10 @@ from uuid import UUID
 
 import aiohttp
 from beartype import beartype
+from dotenv import load_dotenv
 from moy_sklad_api.dtos.inventory_position import InventoryPositionDTO
 
-from moy_sklad_api.exceptions import MoySkladAPIException, MoySkladValidationError
+from moy_sklad_api.exceptions import MoySkladAPIException, MoySkladValidationError, MoySkladConnectionError
 from moy_sklad_api.filter import Filter
 from moy_sklad_api.enums import EntityType, ProductType
 from moy_sklad_api.models import (
@@ -24,19 +25,22 @@ from moy_sklad_api.models.metadata import MetaModel
 from moy_sklad_api.models.bundle import BundleModel
 from moy_sklad_api.models.demand import DemandModel
 from moy_sklad_api.models.inventory import InventoryModel
-from moy_sklad_api.utils import convert_to_project_timezone
+from moy_sklad_api.utils import convert_to_project_timezone, tries, get_required_env
+
+load_dotenv()
+
+request_attempts = int(get_required_env("MOY_SKLAD_REQUEST_ATTEMPTS"))
+attempt_timeout = int(get_required_env("MOY_SKLAD_ATTEMPT_TIMEOUT"))
 
 
+@tries(times=request_attempts, timeout=attempt_timeout)
 class MoySkladAPIClient:
     _BASE_URL = "https://api.moysklad.ru/api/remap/1.2"
 
-    def __init__(self, access_token: str | None = None, session: aiohttp.ClientSession | None = None):
+    def __init__(self, session: aiohttp.ClientSession | None = None):
         self._base_url = self._BASE_URL
 
-        access_token = access_token or os.getenv("MOY_SKLAD_ACCESS_TOKEN")
-
-        if not access_token:
-            raise MoySkladValidationError("Установите токен в виртуальное окружение по ключу MOY_SKLAD_ACCESS_TOKEN.")
+        access_token = get_required_env("MOY_SKLAD_ACCESS_TOKEN")
 
         self._headers = {
             "Authorization": f"Bearer {access_token}",
@@ -683,7 +687,7 @@ class MoySkladAPIClient:
                     raise MoySkladAPIException(f"API вернул невалидный JSON: {e}")
 
         except aiohttp.ClientError as e:
-            raise MoySkladAPIException(f"Ошибка при выполнении запроса: {e}")
+            raise MoySkladConnectionError(f"Ошибка при выполнении запроса: {e}")
 
     async def _async_get(self, url: str) -> Any:
         return await self._async_request("GET", url)

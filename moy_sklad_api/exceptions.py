@@ -4,3 +4,7 @@ class MoySkladValidationError(Exception):
 
 class MoySkladAPIException(Exception):
     pass
+
+
+class MoySkladConnectionError(Exception):
+    pass
