@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from beartype import beartype
-from moy_sklad_api import ProductType
+from moy_sklad_api.enums import ProductType
 
 
 @beartype
@@ -10,4 +10,4 @@ from moy_sklad_api import ProductType
 class InventoryPositionDTO:
     product_id: UUID
     product_type: ProductType
-    quantity: float
+    quantity: float | int

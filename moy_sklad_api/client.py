@@ -562,7 +562,7 @@ class MoySkladAPIClient:
         return response
 
     async def get_warehouse_current_stocks(self, warehouse_id: UUID) -> list[ProductStocksModel]:
-        query_string = f"?storeId={warehouse_id}"
+        query_string = f"?filter=storeId={warehouse_id}"
         url = f"{self._base_url}/report/stock/bystore/current{query_string}"
 
         response = await self._async_get(url)
@@ -582,18 +582,13 @@ class MoySkladAPIClient:
 
         return [ProductExpandStocksModel.model_validate(item) for item in response["rows"]]
 
-    # async def get_loss_template(self, inventory_id: UUID):
-    #     data = {
-    #         "inventory": {
-    #             "meta": MetaModel.for_entity(inventory_id, EntityType.INVENTORY).to_api_dict()
-    #         }
-    #     }
-    #
-    #     url = f"{self._base_url}/entity/loss/new"
-    #
-    #     return await self._async_put(url, data)
-
-    async def create_loss_from_inventory(self, inventory_id: UUID, document_moment: datetime | None = None):
+    async def create_loss_from_inventory(
+            self,
+            *,
+            inventory_id: UUID,
+            project_id: UUID,
+            document_moment: datetime | None = None
+    ):
         async def get_loss_template() -> dict[str, Any]:
             data = {
                 "inventory": {
@@ -609,11 +604,19 @@ class MoySkladAPIClient:
             document_moment = convert_to_project_timezone(document_moment)
             template["moment"] = document_moment.replace(tzinfo=None, microsecond=0).isoformat(sep=" ")
 
+        template["project"] = {"meta": MetaModel.for_entity(project_id, EntityType.PROJECT).to_api_dict()}
+
         url = f"{self._base_url}/entity/loss"
 
         return await self._async_post(url, template)
 
-    async def create_enter_from_inventory(self, inventory_id: UUID, document_moment: datetime | None = None):
+    async def create_enter_from_inventory(
+            self,
+            *,
+            inventory_id: UUID,
+            project_id: UUID,
+            document_moment: datetime | None = None
+    ):
         async def get_enter_template() -> dict[str, Any]:
             data = {
                 "inventory": {
@@ -628,6 +631,8 @@ class MoySkladAPIClient:
         if document_moment is not None:
             document_moment = convert_to_project_timezone(document_moment)
             template["moment"] = document_moment.replace(tzinfo=None, microsecond=0).isoformat(sep=" ")
+
+        template["project"] = {"meta": MetaModel.for_entity(project_id, EntityType.PROJECT).to_api_dict()}
 
         url = f"{self._base_url}/entity/enter"
 
