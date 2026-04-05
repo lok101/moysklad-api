@@ -561,8 +561,8 @@ class MoySkladAPIClient:
 
         return response
 
-    async def get_warehouse_stocks(self, *, filters: list[Filter] | None = None) -> list[ProductStocksModel]:
-        query_string = self._build_query_string(filters=filters)
+    async def get_warehouse_current_stocks(self, warehouse_id: UUID) -> list[ProductStocksModel]:
+        query_string = f"?storeId={warehouse_id}"
         url = f"{self._base_url}/report/stock/bystore/current{query_string}"
 
         response = await self._async_get(url)
