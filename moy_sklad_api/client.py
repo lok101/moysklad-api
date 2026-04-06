@@ -24,7 +24,7 @@ from moy_sklad_api.models import (
     WarehouseModel,
     ProductStocksModel,
     ProductExpandStocksModel,
-    VariantModel
+    VariantModel, LossModel, TurnoverReportByStoreRowModel
 )
 from moy_sklad_api.models.metadata import MetaModel
 from moy_sklad_api.models.bundle import BundleModel
@@ -597,7 +597,12 @@ class MoySkladAPIClient:
 
         return [ProductExpandStocksModel.model_validate(item) for item in response["rows"]]
 
-    async def get_losses(self, from_date: datetime, to_date: datetime | None, project_id: UUID | None):
+    async def get_losses(
+            self,
+            from_date: datetime,
+            to_date: datetime | None,
+            project_id: UUID | None
+    ) -> list[LossModel]:
 
         from_date = convert_to_project_timezone(from_date)
         to_date = convert_to_project_timezone(to_date)
@@ -605,21 +610,40 @@ class MoySkladAPIClient:
         from_dt = from_date.replace(tzinfo=None, microsecond=0)
         to_dt = to_date.replace(tzinfo=None, microsecond=0)
 
-        query_parts = [
-            f"filter=moment>={from_dt.isoformat(sep=' ')}"
-        ]
+        page_size = 100
+        offset = 0
+        all_items: list[Mapping] = []
 
-        if to_date is not None:
-            query_parts.append(f"moment<={to_dt.isoformat(sep=' ')}")
+        while True:
 
-        if project_id is not None:
-            query_parts.append(f"project={MetaModel.for_entity(project_id, EntityType.PROJECT).to_api_dict()}")
+            query_parts = [
+                f"filter=moment>={from_dt.isoformat(sep=' ')}"
+            ]
 
-        query_string = f"?{'&'.join(query_parts)}"
+            if to_date is not None:
+                query_parts.append(f"moment<={to_dt.isoformat(sep=' ')}")
 
-        url = f"{self._base_url}/entity/loss{query_string}"
+            if project_id is not None:
+                query_parts.append(f"project={MetaModel.for_entity(project_id, EntityType.PROJECT).to_api_dict()}")
 
-        return await self._async_get(url)
+            query_parts.append(f"expand=positions.assortment.product")
+
+            query_parts.append(f"limit={page_size}")
+            query_parts.append(f"offset={offset}")
+
+            query_string = f"?{'&'.join(query_parts)}"
+            url = f"{self._base_url}/entity/loss{query_string}"
+            response = await self._async_get(url)
+
+            rows: list[Mapping] = response.get("rows", [])
+            all_items.extend(rows)
+
+            if len(rows) < page_size:
+                break
+
+            offset += page_size
+
+        return [LossModel.model_validate(item) for item in all_items]
 
     async def create_loss_from_inventory(
             self,
@@ -700,6 +724,32 @@ class MoySkladAPIClient:
         url = f"{self._base_url}/entity/enter"
 
         return await self._async_post(url, template)
+
+    async def get_turnovers_report(
+            self,
+            from_date: datetime,
+            to_date: datetime,
+            project_id: UUID,
+            product_id: UUID
+    ) -> list[TurnoverReportByStoreRowModel]:
+        from_date = convert_to_project_timezone(from_date)
+        to_date = convert_to_project_timezone(to_date)
+
+        from_dt = from_date.replace(tzinfo=None, microsecond=0)
+        to_dt = to_date.replace(tzinfo=None, microsecond=0)
+
+        query = (
+            f"?filter"
+            f"=product={MetaModel.for_entity(product_id, EntityType.PRODUCT).href}"
+            # f";project={MetaModel.for_entity(project_id, EntityType.PROJECT).href}"
+            f"&momentFrom={from_dt.isoformat(sep=' ')}"
+            f"&momentTo={to_dt.isoformat(sep=' ')}"
+        )
+        url = f"{self._base_url}/report/turnover/bystore{query}"
+
+        response = await self._async_get(url)
+
+        return [TurnoverReportByStoreRowModel.model_validate(item) for item in response["rows"]]
 
     async def _async_request(
             self,
