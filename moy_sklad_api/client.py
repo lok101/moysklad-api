@@ -729,7 +729,6 @@ class MoySkladAPIClient:
             self,
             from_date: datetime,
             to_date: datetime,
-            project_id: UUID,
             product_id: UUID
     ) -> list[TurnoverReportByStoreRowModel]:
         from_date = convert_to_project_timezone(from_date)
