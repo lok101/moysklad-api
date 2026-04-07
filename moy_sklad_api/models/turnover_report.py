@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from typing import Annotated, Any, Callable
+from uuid import UUID
 
 from pydantic import BaseModel, Field, BeforeValidator
 
 from moy_sklad_api.models.metadata import MetaModel
-from moy_sklad_api.utils import parse_rows_as
+from moy_sklad_api.utils import parse_rows_as, extract_id
 
 
 class TurnoverReportMetricsModel(BaseModel):
@@ -22,6 +23,7 @@ class TurnoverReportAssortmentModel(BaseModel):
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 
+    id: Annotated[UUID, Field(validation_alias="meta"), BeforeValidator(extract_id)]
     meta: MetaModel
     name: str
     article: str | None = None
@@ -33,6 +35,7 @@ class TurnoverReportStoreRefModel(BaseModel):
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 
+    id: Annotated[UUID, Field(validation_alias="meta"), BeforeValidator(extract_id)]
     meta: MetaModel
     name: str | None = None
 
