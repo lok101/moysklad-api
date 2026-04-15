@@ -2,13 +2,15 @@ import json
 import os
 from collections import defaultdict
 from datetime import datetime
-from typing import Any, Literal, Mapping
+from typing import Any, Literal, Mapping, Iterable
 from uuid import UUID
 
 import aiohttp
 from beartype import beartype
 from dotenv import load_dotenv
+from moy_sklad_api.dtos.demand_position import DemandPositionDTO
 from moy_sklad_api.dtos.inventory_position import InventoryPositionDTO
+from moy_sklad_api.dtos.move_position import MovePositionDTO
 
 from moy_sklad_api.exceptions import (
     MoySkladAPIException,
@@ -419,7 +421,7 @@ class MoySkladAPIClient:
     async def create_demand(
             self,
             warehouse_id: UUID,
-            positions: list[tuple[UUID, int, int, ProductType]],
+            positions: list[DemandPositionDTO],
             moment: datetime,
             organization_id: UUID,
             agent_id: UUID,
@@ -448,12 +450,12 @@ class MoySkladAPIClient:
             "description": CREATED_AUTOMATICALLY,
             "positions": [
                 {
-                    "quantity": quantity,
-                    "price": price,
+                    "quantity": position.quantity,
+                    "price": position.price,
                     "assortment": {
-                        "meta": MetaModel.for_entity(product_id, product_type).to_api_dict()
+                        "meta": MetaModel.for_entity(position.product_id, position.product_type).to_api_dict()
                     }
-                } for product_id, quantity, price, product_type in positions],
+                } for position in positions],
         }
 
         response = await self._async_post(url, data)
@@ -537,7 +539,7 @@ class MoySkladAPIClient:
     async def create_move(
             self,
             target_store_id: UUID,
-            positions: list[tuple[UUID, int | float, ProductType]],
+            positions: Iterable[MovePositionDTO],
             source_store_id: UUID,
             moment: datetime,
             organization_id: UUID,
@@ -565,11 +567,11 @@ class MoySkladAPIClient:
             },
             "positions": [
                 {
-                    "quantity": quantity,
+                    "quantity": position.quantity,
                     "assortment": {
-                        "meta": MetaModel.for_entity(product_id, entity_type).to_api_dict()
+                        "meta": MetaModel.for_entity(position.product_id, position.product_type).to_api_dict()
                     }
-                } for product_id, quantity, entity_type in positions]
+                } for position in positions]
         }
 
         response = await self._async_post(url, data)

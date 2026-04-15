@@ -39,4 +39,6 @@ __all__ = [
     "EntityType",
     "ProductType",
     "InventoryPositionDTO",
+    'MovePositionDTO',
+    'DemandPositionDTO',
 ]
