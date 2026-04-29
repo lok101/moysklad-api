@@ -8,6 +8,8 @@ from uuid import UUID
 import aiohttp
 from beartype import beartype
 from dotenv import load_dotenv
+
+from moy_sklad_api.dtos.bundle_position import BundlePositionDTO
 from moy_sklad_api.dtos.demand_position import DemandPositionDTO
 from moy_sklad_api.dtos.inventory_position import InventoryPositionDTO
 from moy_sklad_api.dtos.move_position import MovePositionDTO
@@ -272,7 +274,7 @@ class MoySkladAPIClient:
             self,
             name: str,
             code: str,
-            components: list[tuple[UUID, float, EntityType]],
+            components: list[BundlePositionDTO],
             path_name: str | None = None,
     ) -> UUID:
         url = f"{self._base_url}/entity/bundle"
@@ -283,11 +285,11 @@ class MoySkladAPIClient:
             "components": [
                 {
                     "assortment": {
-                        "meta": MetaModel.for_entity(product_id, entity_type).to_api_dict()
+                        "meta": MetaModel.for_entity(component.product_id, component.product_type).to_api_dict()
                     },
-                    "quantity": quantity,
+                    "quantity": component.quantity,
                 }
-                for product_id, quantity, entity_type in components
+                for component in components
             ],
         }
 
