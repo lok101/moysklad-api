@@ -1,8 +1,8 @@
 import json
-import os
 from collections import defaultdict
 from datetime import datetime
 from typing import Any, Literal, Mapping, Iterable
+from urllib.parse import quote
 from uuid import UUID
 
 import aiohttp
@@ -200,6 +200,21 @@ class MoySkladAPIClient:
         return [ProductModel.model_validate(item) for item in response["rows"]]
 
     @beartype
+    async def get_products_by_path_name(
+            self,
+            path_name: str,
+            recursive: bool=False,
+    ) -> list[ProductModel]:
+        filter_operator = "~=" if recursive else "="
+        filter_expression = f"pathName{filter_operator}{Filter.format_value(path_name)}"
+        query_string = f"?filter={quote(filter_expression, safe='=~/')}"
+        url = f"{self._base_url}/entity/product{query_string}"
+
+        response = await self._async_get(url)
+
+        return [ProductModel.model_validate(item) for item in response["rows"]]
+
+    @beartype
     async def get_variants(
             self, *,
             filters: list[Filter] | None = None,
@@ -227,6 +242,40 @@ class MoySkladAPIClient:
 
             items: list[Mapping] = response["rows"]
 
+            all_items.extend(items)
+            pagination_page += 1
+
+            if len(items) < entity_per_request:
+                break
+
+        return [VariantModel.model_validate(item) for item in all_items]
+
+    @beartype
+    async def get_variants_by_product_ids(
+            self,
+            product_ids: list[UUID | str],
+            *,
+            order: str | None = None,
+    ) -> list[VariantModel]:
+        all_items: list[Mapping] = []
+        entity_per_request: int = 100
+        pagination_page = 0
+
+        filters = [Filter(field="productid", value=product_ids)]
+
+        while True:
+            query_string = self._build_query_string(
+                filters=filters,
+                order=order,
+                limit=entity_per_request,
+                offset=pagination_page * entity_per_request,
+                expand="product"
+            )
+
+            url = f"{self._base_url}/entity/variant{query_string}"
+            response = await self._async_get(url)
+
+            items: list[Mapping] = response["rows"]
             all_items.extend(items)
             pagination_page += 1
 
