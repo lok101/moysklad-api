@@ -347,7 +347,7 @@ class MoySkladAPIClient:
 
         response = await self._async_post(url, data)
 
-        return response["id"]
+        return UUID(response["id"])
 
     @beartype
     async def archive_bundle(self, bundle_id: UUID):
