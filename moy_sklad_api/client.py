@@ -207,12 +207,29 @@ class MoySkladAPIClient:
     ) -> list[ProductModel]:
         filter_operator = "~=" if recursive else "="
         filter_expression = f"pathName{filter_operator}{Filter.format_value(path_name)}"
-        query_string = f"?filter={quote(filter_expression, safe='=~/')}"
-        url = f"{self._base_url}/entity/product{query_string}"
 
-        response = await self._async_get(url)
+        all_items: list[Mapping] = []
+        entity_per_request: int = 100
+        pagination_page = 0
 
-        return [ProductModel.model_validate(item) for item in response["rows"]]
+        while True:
+            offset = pagination_page * entity_per_request
+            query_string = (
+                f"?filter={quote(filter_expression, safe='=~/')}"
+                f"&expand=uom&limit={entity_per_request}&offset={offset}"
+            )
+            url = f"{self._base_url}/entity/product{query_string}"
+
+            response = await self._async_get(url)
+
+            items: list[Mapping] = response["rows"]
+            all_items.extend(items)
+            pagination_page += 1
+
+            if len(items) < entity_per_request:
+                break
+
+        return [ProductModel.model_validate(item) for item in all_items]
 
     @beartype
     async def get_variants(
@@ -264,12 +281,13 @@ class MoySkladAPIClient:
         filters = [Filter(field="productid", value=product_ids)]
 
         while True:
+            offset = pagination_page * entity_per_request
             query_string = self._build_query_string(
                 filters=filters,
                 order=order,
                 limit=entity_per_request,
-                offset=pagination_page * entity_per_request,
-                expand="product"
+                offset=offset,
+                expand="product.uom",
             )
 
             url = f"{self._base_url}/entity/variant{query_string}"
@@ -358,7 +376,7 @@ class MoySkladAPIClient:
 
         response = await self._async_put(url, data)
 
-        return response["id"]
+        return UUID(response["id"])
 
     @beartype
     async def get_demands(
