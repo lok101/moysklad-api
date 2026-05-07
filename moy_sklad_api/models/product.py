@@ -12,7 +12,6 @@ class ProductModel(BaseModel):
     external_code: str | None = Field(default=None, validation_alias="externalCode")
     archived: bool
     path_name: str | None = Field(default=None, validation_alias="pathName")
-    uom: str | None = Field(default=None, validation_alias=AliasPath("uom", "name"))
     meta: MetaModel
 
     model_config = {"populate_by_name": True, "extra": "ignore"}

@@ -337,6 +337,38 @@ class MoySkladAPIClient:
         return [BundleModel.model_validate(item) for item in all_items]
 
     @beartype
+    async def get_bundles_by_path_name(
+            self,
+            path_name: str,
+            recursive: bool=False,
+    ) -> list[BundleModel]:
+        filter_operator = "~=" if recursive else "="
+        filter_expression = f"pathName{filter_operator}{Filter.format_value(path_name)}"
+
+        all_items: list[Mapping] = []
+        entity_per_request: int = 100
+        pagination_page = 0
+
+        while True:
+            offset = pagination_page * entity_per_request
+            query_string = (
+                f"?filter={quote(filter_expression, safe='=~/')}"
+                f"&expand=components.assortment.product&limit={entity_per_request}&offset={offset}"
+            )
+            url = f"{self._base_url}/entity/bundle{query_string}"
+
+            response = await self._async_get(url)
+
+            items: list[Mapping] = response["rows"]
+            all_items.extend(items)
+            pagination_page += 1
+
+            if len(items) < entity_per_request:
+                break
+
+        return [BundleModel.model_validate(item) for item in all_items]
+
+    @beartype
     async def create_bundle(
             self,
             name: str,
